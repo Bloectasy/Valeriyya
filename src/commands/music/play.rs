@@ -73,7 +73,7 @@ pub async fn play(
                 Event::Track(TrackEvent::End),
                 SongEndNotifier {
                     chan_id: ctx.channel_id(),
-                    http: ctx.discord().http.clone(),
+                    http: ctx.serenity_context().http.clone(),
                     metadata: metadata[i].clone(),
                 },
             );
@@ -83,7 +83,7 @@ pub async fn play(
                     Event::Track(TrackEvent::Play),
                     SongPlayNotifier {
                         chan_id: ctx.channel_id(),
-                        http: ctx.discord().http.clone(),
+                        http: ctx.serenity_context().http.clone(),
                         metadata: metadata[i].clone(),
                     },
                 );

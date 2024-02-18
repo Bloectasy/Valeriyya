@@ -65,7 +65,7 @@ pub async fn role(
 ) -> Result<(), Error> {
 
     let database = &ctx.data().database();
-    let guild_id = ctx.guild_id().unwrap().0;
+    let guild_id = ctx.guild_id().unwrap().get();
 
     let mut db = GuildDb::new(database, guild_id.to_string()).await;
     if let RoleTypeChoices::Staff = type_option {

@@ -27,31 +27,31 @@ iso8601-duration = "0.2.0"
 git = "https://github.com/serenity-rs/serenity"
 default-features = false
 features = ["builder", "cache", "client", "gateway", "http", "model", "utils", "rustls_backend", "chrono", "voice", "framework"]
-rev = "4f0f6493fe17a2f29f1228428c500d640614602e"
+rev = "5536d0400f14642867ed07ab0865315754a86a1b"
 
 # Poise Serenity-Next Branch
 [dependencies.poise]
 git = "https://github.com/serenity-rs/poise"
-rev = "88c10cc92f45071a7234dbdc98633ead1e16d732"
+rev = "70c7b26613a209e9a626772bdd1dbe8e1bd74bce"
 
 [dependencies.mongodb]
-version = "2.2.2"
+version = "2.8.1"
 default-features = false
 features = ["async-std-runtime"]
 
 # Songbird Symphonia Branch
 [dependencies.songbird]
-git = "https://github.com/FelixMcFelix/songbird"
+git = "https://github.com/serenity-rs/songbird"
 features = ["builtin-queue"]
-rev = "efe2a0b6d5d0e01685334c0cac05bb4bbbf0c32d"
+rev = "ea7cfd97dc2363870248505537d2aa94107fb23b"
 
 [dependencies.symphonia]
 version = "0.5.2"
 features = ["aac", "mp3", "isomp4", "alac"]
 
 [patch.crates-io]
-proc-macro2 = { git = "https://github.com/dtolnay/proc-macro2", rev = "45ef770a5189ceca3adae9d4d6117a782da30a2a" }
-log = { git = "https://github.com/rust-lang/log", rev = "35ee9442132c4aa49d22e8f00e2ba79fe149d920" }
+# proc-macro2 = { git = "https://github.com/dtolnay/proc-macro2", rev = "45ef770a5189ceca3adae9d4d6117a782da30a2a" }
+# log = { git = "https://github.com/rust-lang/log", rev = "35ee9442132c4aa49d22e8f00e2ba79fe149d920" }
 # # Patching Serenity
 # [patch."https://github.com/serenity-rs/serenity"]
 # serenity = { version = "0.11.5" }

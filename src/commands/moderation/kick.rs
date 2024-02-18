@@ -20,9 +20,9 @@ pub async fn kick(
     reason: Option<String>,
 ) -> Result<(), Error> {
     let database = &ctx.data().database();
-    let guild_id = ctx.guild_id().unwrap();
+    let guild_id = ctx.guild_id().unwrap().get();
 
-    let mut guild_db = Valeriyya::get_database(database, guild_id.to_string()).await;
+    let mut guild_db = Valeriyya::get_database(database, guild_id).await;
     let case_number = guild_db.cases_number + 1;
     let reason_default = reason.unwrap_or_else(|| format!("Use /reason {} <...reason> to set a reason for this case.", case_number));
 
@@ -31,7 +31,7 @@ pub async fn kick(
         return Ok(());
     }
     member
-        .kick_with_reason(ctx.discord(), &reason_default)
+        .kick_with_reason(ctx.serenity_context(), &reason_default)
         .await?;
     let icon_url = ctx
         .guild()
@@ -40,8 +40,8 @@ pub async fn kick(
         .unwrap_or_else(|| String::from(""));
 
     let message = if guild_db.channels.logs.as_ref().is_some() {
-        let sent_msg = ChannelId(guild_db.channels.logs.as_ref().unwrap().parse::<std::num::NonZeroU64>().unwrap())
-            .send_message(ctx.discord(), Valeriyya::msg_reply().add_embed(
+        let sent_msg = ChannelId::new(guild_db.channels.logs.as_ref().unwrap().parse::<u64>().unwrap())
+            .send_message(ctx.serenity_context(), Valeriyya::msg_reply().add_embed(
                 Valeriyya::embed()
                     .author(Valeriyya::reply_author(format!(
                         "{} ({})",

@@ -23,14 +23,15 @@ pub async fn ban(
     reason: Option<String>,
 ) -> Result<(), Error> {
     let database = &ctx.data().database();
-    let guild_id = ctx.guild_id().unwrap();
+    let guild = ctx.guild_id().unwrap();
+    let guild_id = guild.get();
     let icon_url = ctx
         .guild()
         .unwrap()
         .icon_url()
         .unwrap_or(String::from(""));
 
-    let mut guild_db = Valeriyya::get_database(database, guild_id.to_string()).await;
+    let mut guild_db = Valeriyya::get_database(database, guild_id).await;
     let case_number = guild_db.cases_number + 1;
     let reason_default = reason.unwrap_or(format!("Use /reason {} <...reason> to set a reason for this case.", case_number));
 
@@ -39,8 +40,8 @@ pub async fn ban(
             ctx.send(Valeriyya::reply("The member can't be managed so you can't ban them!").ephemeral(true)).await?;
             return Ok(());
         }
-        if guild_id
-            .bans(&ctx.discord().http)
+        if guild
+            .bans(ctx.http(), None, None)
             .await?
             .iter()
             .any(|ban| ban.user.id == member.user.id)
@@ -49,20 +50,20 @@ pub async fn ban(
             ctx.send(Valeriyya::reply("This member is already banned from this guild.").ephemeral(true)).await?;
         }
         member
-            .ban_with_reason(ctx.discord(), 7, &reason_default)
+            .ban_with_reason(ctx.http(), 7, &reason_default)
             .await?;
 
         let message = if guild_db.channels.logs.as_ref().is_some() {
-            let sent_msg = ChannelId(
+            let sent_msg = ChannelId::new(
                 guild_db
                     .channels
                     .logs
                     .as_ref()
                     .unwrap()
-                    .parse::<std::num::NonZeroU64>()
+                    .parse::<u64>()
                     .unwrap(),
             )
-            .send_message(ctx.discord(), Valeriyya::msg_reply().add_embed(
+            .send_message(ctx.serenity_context(), Valeriyya::msg_reply().add_embed(
                 Valeriyya::embed()
                     .author(Valeriyya::reply_author(format!(
                         "{} ({})",
@@ -104,30 +105,30 @@ pub async fn ban(
         ))
         .await?;
     } else if let Some(m_id) = &member_id {
-        let user_id = UserId(m_id.parse().unwrap());
-        if guild_id
-            .bans(&ctx.discord().http)
+        let user_id = UserId::new(m_id.parse().unwrap());
+        if guild
+            .bans(ctx.http(), None, None)
             .await?
             .iter()
             .any(|ban| ban.user.id == user_id)
         {
             ctx.send(Valeriyya::reply("This member is already banned from this guild.").ephemeral(true)).await?;
         }
-        guild_id
-            .ban_with_reason(ctx.discord(), user_id, 7, &reason_default)
+        guild
+            .ban_with_reason(ctx.http(), user_id, 7, &reason_default)
             .await?;
 
         let message = if guild_db.channels.logs.as_ref().is_some() {
-            let sent_msg = ChannelId(
+            let sent_msg = ChannelId::new(
                 guild_db
                     .channels
                     .logs
                     .as_ref()
                     .unwrap()
-                    .parse::<std::num::NonZeroU64>()
+                    .parse::<u64>()
                     .unwrap(),
             )
-            .send_message(ctx.discord(), Valeriyya::msg_reply().add_embed(
+            .send_message(ctx.serenity_context(), Valeriyya::msg_reply().add_embed(
                 Valeriyya::embed()
                     .author(Valeriyya::reply_author(format!(
                         "{} ({})",
@@ -154,7 +155,7 @@ pub async fn ban(
             action: ActionTypes::Ban,
             guild_id: guild_id.to_string(),
             staff_id: ctx.author().id.to_string(),
-            target_id: user_id.0.to_string(),
+            target_id: user_id.to_string(),
             date: Timestamp::unix_timestamp(&Timestamp::now()),
             reason: reason_default.to_string(),
             message,

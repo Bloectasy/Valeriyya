@@ -1,13 +1,11 @@
-#![feature(fn_traits)]
-
 mod commands;
-mod utils;
 mod structs;
+mod utils;
 
 use mongodb::options::{ClientOptions, ResolverConfig};
 use mongodb::{Client, Database};
-use poise::serenity_prelude::GatewayIntents;
 use poise::serenity_prelude::FullEvent;
+use poise::serenity_prelude::{self, GatewayIntents};
 
 type Error = Box<dyn std::error::Error + Send + Sync>;
 type Context<'a> = poise::Context<'a, Data, Error>;
@@ -16,7 +14,7 @@ type Context<'a> = poise::Context<'a, Data, Error>;
 pub struct Data {
     db_client: Client,
     api_key: String,
-    songbird: std::sync::Arc<songbird::Songbird>
+    songbird: std::sync::Arc<songbird::Songbird>,
 }
 
 impl Data {
@@ -28,16 +26,13 @@ impl Data {
 fn event_listeners(
     event: &FullEvent,
     _framework: poise::FrameworkContext<'_, Data, Error>,
-    _user_data: &Data,
 ) -> Result<(), Error> {
-
     #[allow(clippy::single_match)]
     match event {
-        FullEvent::Ready { ctx, data_about_bot } => {
-            ctx.online();
-            println!("{} is connected!", data_about_bot.user.tag())
-        },
-        _ => {},
+        FullEvent::Ready { data_about_bot } => {
+            println!("{} is connected!", data_about_bot.user.name);
+        }
+        _ => {}
     }
 
     Ok(())
@@ -63,34 +58,27 @@ async fn init() -> Result<(), Error> {
 
     let options = poise::FrameworkOptions {
         commands: vec![
-            // Information Commands
-            commands::info::user(),
             commands::info::help(),
             commands::info::register(),
-            // Music Commands
             commands::music::play(),
             commands::music::skip(),
             commands::music::leave(),
             commands::music::join(),
             commands::music::loop_music(),
-            // Moderation Commands
             commands::moderation::ban(),
             commands::moderation::kick(),
             commands::moderation::mute(),
             commands::moderation::cases(),
             commands::moderation::reference(),
             commands::moderation::reason(),
-            // Settings Command
             commands::settings::settings(),
         ],
         prefix_options: poise::PrefixFrameworkOptions {
-            prefix: Some("!".to_string()),
+            prefix: Some("!".into()),
             ..Default::default()
         },
-        listener: |event, framework, data| {
-            Box::pin(async move {
-                event_listeners(event, framework, data)
-            })
+        event_handler: |framework, event| {
+            Box::pin(async move { event_listeners(event, framework) })
         },
         ..Default::default()
     };
@@ -98,18 +86,15 @@ async fn init() -> Result<(), Error> {
     let data = Data {
         db_client,
         api_key,
-        songbird: songbird.clone()
+        songbird: songbird.clone(),
     };
 
-    let framework = poise::Framework::new(options, move |_ctx, _ready, _framework| {
-        Box::pin(async {
-            Ok(data)
-        })
-    });
+    let framework = poise::Framework::new(options);
 
-    let mut client = poise::serenity_prelude::Client::builder(discord_token, discord_intents)
-        .voice_manager_arc(songbird)
+    let mut client = serenity_prelude::ClientBuilder::new(&discord_token, discord_intents)
+        // .voice_manager_arc(songbird)
         .framework(framework)
+        .data(std::sync::Arc::new(data))
         .await
         .unwrap();
 

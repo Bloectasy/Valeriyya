@@ -3,9 +3,7 @@ use crate::{
     utils::{member_managable, Valeriyya},
     Context, Error,
 };
-use poise::{
-    serenity_prelude::{Timestamp, ChannelId, Member}
-};
+use poise::serenity_prelude::{Timestamp, ChannelId, Member};
 
 #[doc = "Mutes a member for a specified time."]
 #[poise::command(
@@ -33,9 +31,9 @@ pub async fn mute(
             .ok();
 
     let database = &ctx.data().database();
-    let guild_id = ctx.guild_id().unwrap();
+    let guild_id = ctx.guild_id().unwrap().get();
 
-    let mut guild_db = Valeriyya::get_database(database, guild_id.to_string()).await;
+    let mut guild_db = Valeriyya::get_database(database, guild_id).await;
     let case_number = guild_db.cases_number + 1;
     let reason_default = reason.unwrap_or_else(|| format!("Use /reason {} <...reason> to seat a reason for this case.", case_number));
 
@@ -57,23 +55,24 @@ pub async fn mute(
     };
 
     member
-        .disable_communication_until_datetime(&ctx.discord().http, timestamp.unwrap())
+        .disable_communication_until(&ctx.serenity_context().http, timestamp.unwrap())
         .await?;
     let icon_url = ctx
         .guild()
         .unwrap()
         .icon_url()
         .unwrap_or_else(|| String::from(""));
+
     let message = if guild_db.channels.logs.is_some() {
-        let sent_msg = ChannelId(
+        let sent_msg = ChannelId::new(
             guild_db.channels
                 .logs
                 .as_ref()
                 .unwrap()
-                .parse::<std::num::NonZeroU64>()
+                .parse::<u64>()
                 .unwrap(),
         )
-        .send_message(ctx.discord(), Valeriyya::msg_reply().embed(
+        .send_message(ctx.serenity_context(), Valeriyya::msg_reply().embed(
             Valeriyya::embed()
                 .author(Valeriyya::reply_author(format!("{} ({})", ctx.author().tag(), ctx.author().id)).icon_url(ctx.author().face()))
                 .thumbnail(&icon_url)
@@ -82,7 +81,7 @@ pub async fn mute(
                     member.user.tag(),
                     ActionTypes::Mute,
                     reason_default,
-                    time_format(time)
+                    time_format_mute(time)
                 ))
                 .footer(Valeriyya::reply_footer(format!("Case {}", case_number)))
             )).await.expect("Guild log channel doesn't exist");
@@ -94,7 +93,7 @@ pub async fn mute(
     guild_db = guild_db.add_cases(Case {
         id: case_number,
         action: ActionTypes::Mute,
-        guild_id: guild_id.0.to_string(),
+        guild_id: guild_id.to_string(),
         staff_id: ctx.author().id.to_string(),
         target_id: member.user.id.to_string(),
         date: Timestamp::unix_timestamp(&Timestamp::now()),
@@ -110,7 +109,7 @@ pub async fn mute(
     Ok(())
 }
 
-fn time_format(time: String) -> String {
+fn time_format_mute(time: String) -> String {
     format!(
         "<t:{}:R>",
         Timestamp::unix_timestamp(&Timestamp::now()) + Valeriyya::ms(time)

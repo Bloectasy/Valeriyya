@@ -1,5 +1,3 @@
-use std::{num::NonZeroU64, sync::Arc};
-
 use poise::serenity_prelude::{MessageId, UserId, Timestamp, ChannelId};
 
 use crate::{
@@ -17,59 +15,59 @@ pub async fn reason(
     #[description = "The reasoning for the case."] #[rest] reason: String,
 ) -> Result<(), Error> {
     let database = &ctx.data().database();
-    let guild_id = ctx.guild_id().unwrap().0;
-    let db = Valeriyya::get_database(database, guild_id.to_string()).await;
-    let db = Arc::new(db);
+    let guild_id = ctx.guild_id().unwrap().get();
+    let mut db = Valeriyya::get_database(database, guild_id).await;
 
-    let case_find = db.cases.iter().find(|c| c.id == case);
+    let case_find = match db.cases.iter().find(|c| c.id == case) {
+        Some(c) => c.clone(),
+        None => {
+            ctx.send(Valeriyya::reply(format!("Case with the id: {} doesn't exist", case)).ephemeral(true)).await?;
+            return Ok(());
+        }
+    };
 
-
-    if case_find.is_none() {
-        ctx.send(Valeriyya::reply(format!("Case with the id: {} doesn't exist", case)).ephemeral(true)).await?;
-        return Ok(())
-    }
-    
-    let db_clone = Arc::clone(&db);
-    let db = Arc::try_unwrap(db_clone).unwrap();
-    
-    let db = db.update_case(case, CaseUpdateAction::Reason, CaseUpdateValue {
+    db = db.update_case(case, CaseUpdateAction::Reason, CaseUpdateValue {
         reason: Some(reason.clone()),
         reference: None
     });
 
     ctx.send(Valeriyya::reply(format!("Updated case with the id: {case}")).ephemeral(true)).await?;
 
-    if db.channels.logs.is_some() {
-        let channel = ChannelId(db.channels.logs.unwrap().parse::<NonZeroU64>().unwrap());
-        if case_find.unwrap().message.is_some() {
-            let case_found = case_find.unwrap();
+    if let Some(logs) = &db.channels.logs {
+        let channel = ChannelId::new(logs.parse::<u64>().unwrap());
+        if case_find.message.is_some() {
             let mut log_channel_msg = channel.message(
-                ctx.discord(), 
-                MessageId(case_found.message.as_deref().unwrap().parse::<NonZeroU64>().unwrap())).await?;
-            let staff_user_cache = UserId(case_found.staff_id.parse::<NonZeroU64>().unwrap()).to_user(ctx.discord()).await?.to_owned();
-            let staff_user = (staff_user_cache.tag(), staff_user_cache.id, staff_user_cache.face());
-            let target_user = UserId(case_found.target_id.parse::<NonZeroU64>().unwrap()).to_user(ctx.discord()).await?.tag();
-
-            let mut embed = Valeriyya::embed()
-                .timestamp(Timestamp::from(&Timestamp::from_unix_timestamp(case_found.date).unwrap()))
-                .author(Valeriyya::reply_author(format!("{} ({})", staff_user.0, staff_user.1)).icon_url(staff_user.2))
-                .footer(Valeriyya::reply_footer(format!("Case {}", case_found.id)));
+                ctx.serenity_context(), 
+                MessageId::new(case_find.message.as_deref().unwrap().parse::<u64>().unwrap())).await?;
+            let staff_user_cache = UserId::new(case_find.staff_id.parse::<u64>().unwrap()).to_user(ctx.serenity_context()).await?;
+            let (staff_name, staff_id, staff_face) = (&staff_user_cache.name, staff_user_cache.id, staff_user_cache.face());
+            let target_user = UserId::new(case_find.target_id.parse::<u64>().unwrap()).to_user(ctx.serenity_context()).await?.name;
+            let icon_url = ctx
+            .guild()
+            .unwrap()
+            .icon_url()
+            .unwrap_or(String::from(""));
             
-            if case_found.action == ActionTypes::Mute {
-                embed = embed.description(format!(
-                    "Member: `{}`\nAction: `{:?}`\nReason: `{}`\nExpiration: {:?}",
-                    target_user, case_found.action, reason, case_found.expiration.unwrap() 
+            let embed = Valeriyya::embed()
+                .timestamp(Timestamp::from(&Timestamp::from_unix_timestamp(case_find.date).unwrap()))
+                .author(Valeriyya::reply_author(format!("{} ({})", staff_name, staff_id)).icon_url(staff_face))
+                .thumbnail(icon_url)
+                .footer(Valeriyya::reply_footer(format!("Case {}", case_find.id)))
+                .description(format!(
+                    "Member: `{}`\nAction: `{:?}`\nReason: `{}`\n{}",
+                    target_user,
+                    case_find.action,
+                    reason,
+                    match case_find.action {
+                        ActionTypes::Mute => format!("Expiration: {}", Valeriyya::time_format(case_find.expiration.unwrap().to_string())),
+                        _ => "".to_string(),
+                    }
                 ));
-            } else {
-                embed = embed.description(format!(
-                    "Member: `{}`\nAction: `{:?}`\nReason: `{}`",
-                    target_user, case_found.action, reason
-                ))
-            }
+                
 
-            log_channel_msg.edit(ctx.discord(), Valeriyya::msg_edit().embed(embed)).await?;
+            log_channel_msg.edit(ctx.serenity_context(), Valeriyya::msg_edit().embed(embed)).await?;
         };
     }
-
+    db.execute(database).await;
     Ok(())
 }

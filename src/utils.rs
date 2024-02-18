@@ -1,17 +1,21 @@
-// #![allow(dead_code)]
-// #![allow(non_camel_case_types)]
-// #![allow(non_snake_case)]
-
 use mongodb::Database;
 use poise::{
-    serenity_prelude::{
-        Color, CreateEmbed, Member, RoleId, Timestamp, CreateEmbedAuthor, CreateEmbedFooter, CreateMessage, EditMessage,
-    }, CreateReply,
+    serenity_prelude::all::{
+        Color, CreateEmbed, CreateEmbedAuthor, CreateEmbedFooter, CreateMessage, EditMessage,
+        Member, RoleId, Timestamp,
+    },
+    CreateReply,
 };
 // use reqwest::header::{AUTHORIZATION, CONTENT_TYPE, ACCEPT};
 use iso8601_duration::Duration as iso_duration;
 
-use crate::{Context, Error, structs::{CaseUpdateAction, CaseUpdateValue, GuildDb, Video, ResponseVideoApi, ResponsePlaylistApi, ResponseSearchVideoApi, SearchVideoItem}};
+use crate::{
+    structs::{
+        GuildDb, ResponsePlaylistApi, ResponseSearchVideoApi, ResponseVideoApi, SearchVideoItem,
+        Video,
+    },
+    Context, Error,
+};
 
 #[macro_export]
 macro_rules! import {
@@ -47,31 +51,52 @@ macro_rules! regex_lazy {
 //     .send().await.unwrap().text();
 // }
 
-async fn search_video(query: impl Into<String>, api_key: &String, reqwest: &reqwest::Client) -> SearchVideoItem  {
+async fn search_video(
+    query: impl Into<String>,
+    api_key: &String,
+    reqwest: &reqwest::Client,
+) -> SearchVideoItem {
     let url = format!(
         "https://youtube.googleapis.com/youtube/v3/search?part=snippet&order=relevance&type=video&maxResults=1&q={}&key={}", 
-        query.into(), 
+        query.into(),
         api_key
     );
-    let video = reqwest.get(url).send()
-    .await.expect("Error getting Video search.")
-    .json::<ResponseSearchVideoApi>()
-    .await.expect("Error parsing the Video search JSON.").items;
-    video.first().expect("Error getting the first Video search.").clone()
+    let video = reqwest
+        .get(url)
+        .send()
+        .await
+        .expect("Error getting Video search.")
+        .json::<ResponseSearchVideoApi>()
+        .await
+        .expect("Error parsing the Video search JSON.")
+        .items;
+    video
+        .first()
+        .expect("Error getting the first Video search.")
+        .clone()
 }
 
-async fn get_metadata(ctx: Context<'_>, url: impl Into<String>, playlist: bool) -> Vec<Video>  {
+async fn get_metadata(ctx: Context<'_>, url: impl Into<String>, playlist: bool) -> Vec<Video> {
     let url = url.into();
     let reqwest_client = reqwest::Client::new();
     let api_key = ctx.data().api_key.clone();
 
     let id = if playlist {
-        regex!(r"(?:(?:PL|LL|EC|UU|FL|RD|UL|TL|PU|OLAK5uy_)[0-9A-Za-z-_]{10,}|RDMM)").find(&url).map(|u| u.as_str().to_owned()).unwrap()
+        regex!(r"(?:(?:PL|LL|EC|UU|FL|RD|UL|TL|PU|OLAK5uy_)[0-9A-Za-z-_]{10,}|RDMM)")
+            .find(&url)
+            .map(|u| u.as_str().to_owned())
+            .unwrap()
     } else {
-        match regex!(r"[0-9A-Za-z_-]{10}[048AEIMQUYcgkosw]").find(&url).map(|u| u.as_str().to_owned()) {
+        match regex!(r"[0-9A-Za-z_-]{10}[048AEIMQUYcgkosw]")
+            .find(&url)
+            .map(|u| u.as_str().to_owned())
+        {
             Some(u) => u,
             None => {
-                search_video(url.clone(), &api_key, &reqwest_client).await.id.video_id
+                search_video(url.clone(), &api_key, &reqwest_client)
+                    .await
+                    .id
+                    .video_id
             }
         }
     };
@@ -82,16 +107,20 @@ async fn get_metadata(ctx: Context<'_>, url: impl Into<String>, playlist: bool) 
             id,
             api_key
         );
-        let playlist_items = reqwest_client.get(request_playlist_url)
-        .send()
-        .await.expect("Error getting Playlist JSON.")
-        .json::<ResponsePlaylistApi>()
-        .await.expect("Error parsing the Playlist JSON.").items;
+        let playlist_items = reqwest_client
+            .get(request_playlist_url)
+            .send()
+            .await
+            .expect("Error getting Playlist JSON.")
+            .json::<ResponsePlaylistApi>()
+            .await
+            .expect("Error parsing the Playlist JSON.")
+            .items;
 
         let mut video_ids: Vec<String> = Vec::with_capacity(100);
         for item in playlist_items.into_iter() {
             video_ids.push(item.snippet.resource_id.video_id);
-        };
+        }
 
         let request_videos_url = format!(
             "https://youtube.googleapis.com/youtube/v3/videos?part=snippet%2CcontentDetails&id={}&key={}",
@@ -99,19 +128,26 @@ async fn get_metadata(ctx: Context<'_>, url: impl Into<String>, playlist: bool) 
             api_key
         );
 
-        let video_items = reqwest_client.get(request_videos_url)
-        .send()
-        .await.expect("Error getting Videos from the Video Id Vector.")
-        .json::<ResponseVideoApi>()
-        .await.expect("Error parsing the Videos JSON.").items;
+        let video_items = reqwest_client
+            .get(request_videos_url)
+            .send()
+            .await
+            .expect("Error getting Videos from the Video Id Vector.")
+            .json::<ResponseVideoApi>()
+            .await
+            .expect("Error parsing the Videos JSON.")
+            .items;
 
         let mut videos: Vec<Video> = Vec::with_capacity(100);
         for item in video_items.into_iter() {
-            let duration = iso_duration::parse(&item.content_details.duration).unwrap().to_std().unwrap();
+            let duration = iso_duration::parse(&item.content_details.duration)
+                .unwrap()
+                .to_std()
+                .unwrap();
             videos.push(Video {
                 id: item.id,
                 title: item.snippet.title,
-                duration
+                duration,
             });
         }
         return videos;
@@ -123,16 +159,26 @@ async fn get_metadata(ctx: Context<'_>, url: impl Into<String>, playlist: bool) 
         api_key
     );
 
-    let item = reqwest_client.get(request_video_url)
-    .send()
-    .await.expect("Error getting Video JSON")
-    .json::<ResponseVideoApi>()
-    .await.expect("Error parsing the Video JSON.").items.first().expect("There is no video from this url.").clone();
-    let duration = iso_duration::parse(&item.content_details.duration).unwrap().to_std().unwrap();
+    let item = reqwest_client
+        .get(request_video_url)
+        .send()
+        .await
+        .expect("Error getting Video JSON")
+        .json::<ResponseVideoApi>()
+        .await
+        .expect("Error parsing the Video JSON.")
+        .items
+        .first()
+        .expect("There is no video from this url.")
+        .clone();
+    let duration = iso_duration::parse(&item.content_details.duration)
+        .unwrap()
+        .to_std()
+        .unwrap();
     vec![Video {
         id: item.id,
         title: item.snippet.title,
-        duration
+        duration,
     }]
 }
 
@@ -177,7 +223,7 @@ pub async fn get_guild_member(ctx: Context<'_>) -> Result<Option<Member>, Error>
     Ok(match ctx.guild_id() {
         Some(guild_id) => Some(
             guild_id
-                .member(ctx.discord(), ctx.author())
+                .member(ctx.serenity_context(), ctx.author().id)
                 .await?,
         ),
         None => None,
@@ -190,32 +236,37 @@ pub async fn member_managable(ctx: Context<'_>, member: &Member) -> bool {
         if member.user.id == guild.owner_id {
             return false;
         }
-        if member.user.id == ctx.discord().cache.current_user().id {
+        if member.user.id == ctx.serenity_context().cache.current_user().id {
             return false;
         }
-        if ctx.discord().cache.current_user().id == guild.owner_id {
+        if ctx.serenity_context().cache.current_user().id == guild.owner_id {
             return true;
         }
     }
 
     let guild_id = ctx.guild_id().unwrap();
-    
-    let user_id = ctx.discord().cache.current_user().id;
+
+    let user_id = ctx.serenity_context().cache.current_user().id;
     let me = guild_id
-        .member(ctx.discord(), user_id)
+        .member(ctx.serenity_context(), user_id)
         .await
         .unwrap();
 
     let highest_me_role: RoleId = if me.roles.is_empty() {
-        RoleId(guild_id.0)
+        RoleId::new(guild_id.everyone_role().get())
     } else {
-       me.highest_role_info(&ctx.discord().cache).unwrap().0
+        me.highest_role_info(&ctx.serenity_context().cache)
+            .unwrap()
+            .0
     };
 
     let member_highest_role: RoleId = if member.roles.is_empty() {
-        RoleId(guild_id.0)
+        RoleId::new(guild_id.everyone_role().get())
     } else {
-        member.highest_role_info(&ctx.discord().cache).unwrap().0
+        member
+            .highest_role_info(&ctx.serenity_context().cache)
+            .unwrap()
+            .0
     };
 
     compare_role_position(ctx, highest_me_role, member_highest_role) > 0
@@ -234,69 +285,53 @@ pub fn compare_role_position(ctx: Context<'_>, role1: RoleId, role2: RoleId) -> 
     (r1.position - r2.position).into()
 }
 
-pub async fn update_case(
-    database: &Database,
-    gid: String,
-    id: u32,
-    action: CaseUpdateAction,
-    value: CaseUpdateValue,
-) {
-    let mut db = Valeriyya::get_database(database, gid).await;
-
-    let c = db.cases.iter_mut().find(|c| c.id == id).unwrap();
-
-    if let CaseUpdateAction::Reason = action {
-        c.reason = value.reason.unwrap();
-    } else if let CaseUpdateAction::Reference = action {
-        c.reference = Some(value.reference.unwrap());
-    }
-
-    db.execute(database).await;
-}
-
 pub const PURPLE_COLOR: Color = Color::from_rgb(82, 66, 100);
 
 pub struct Valeriyya;
 
 impl Valeriyya {
     // * Shortcuts to most Create structures
-    pub fn embed() -> CreateEmbed {
-        CreateEmbed::default()
+    pub fn embed<'a>() -> CreateEmbed<'a> {
+        CreateEmbed::new()
             .color(PURPLE_COLOR)
             .timestamp(Timestamp::now())
     }
 
-    pub fn msg_reply() -> CreateMessage {
+    pub fn msg_reply<'a>() -> CreateMessage<'a> {
         CreateMessage::new()
     }
 
-    pub fn msg_edit() -> EditMessage {
+    pub fn msg_edit<'a>() -> EditMessage<'a> {
         EditMessage::new()
     }
 
-    pub fn reply_default() -> CreateReply {
-        CreateReply::new()
+    pub fn reply_default<'a>() -> CreateReply<'a> {
+        CreateReply::new().ephemeral(true)
     }
 
-    pub fn reply(content: impl Into<String>) -> CreateReply {
-        CreateReply::new().content(content)
+    pub fn reply<'a>(content: impl Into<String>) -> CreateReply<'a> {
+        CreateReply::new().content(content.into())
     }
 
-    pub fn reply_author(content: impl Into<String>) -> CreateEmbedAuthor {
-        CreateEmbedAuthor::new(content)
+    pub fn reply_author<'a>(content: impl Into<String>) -> CreateEmbedAuthor<'a> {
+        CreateEmbedAuthor::new(content.into())
     }
 
-    pub fn reply_footer(content: impl Into<String>) -> CreateEmbedFooter {
-        CreateEmbedFooter::new(content)
+    pub fn reply_footer<'a>(content: impl Into<String>) -> CreateEmbedFooter<'a> {
+        CreateEmbedFooter::new(content.into())
     }
 
     // * Utility functions
+    pub fn time_format(time: String) -> String {
+        format!("<t:{}:R>", time)
+    }
+
     pub fn ms(raw_text: impl ToString) -> i64 {
         string_to_sec(raw_text)
     }
 
-    pub async fn get_database(db: &Database, guild_id: impl Into<String>) -> GuildDb {
-        GuildDb::new(db, guild_id).await
+    pub async fn get_database(db: &Database, guild_id: u64) -> GuildDb {
+        GuildDb::new(db, guild_id.to_string()).await
     }
 
     pub async fn get_video_metadata(ctx: Context<'_>, url: impl Into<String>) -> Vec<Video> {
@@ -306,5 +341,4 @@ impl Valeriyya {
     pub async fn get_playlist_metadata(ctx: Context<'_>, url: impl Into<String>) -> Vec<Video> {
         get_metadata(ctx, url, true).await
     }
-
 }

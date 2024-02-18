@@ -2,24 +2,26 @@ use std::sync::Arc;
 
 use bson::doc;
 use mongodb::Database;
-use poise::{serenity_prelude::{ChannelId, Http}, async_trait};
-use serde::{Serialize, Deserialize};
-use songbird::{EventContext, Event, EventHandler};
+use poise::{
+    async_trait,
+    serenity_prelude::{ChannelId, Http},
+};
+use serde::{Deserialize, Serialize};
+use songbird::{Event, EventContext, EventHandler};
 
 use crate::utils::Valeriyya;
 
-
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, Serialize, Deserialize, Default, Clone)]
 pub struct GuildDbChannels {
     pub logs: Option<String>,
     pub welcome: Option<String>,
 }
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, Serialize, Deserialize, Default, Clone)]
 pub struct GuildDbRoles {
     pub staff: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub enum ActionTypes {
     Ban,
     Unban,
@@ -27,7 +29,7 @@ pub enum ActionTypes {
     Mute,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Case {
     pub id: u32,
     pub action: ActionTypes,
@@ -41,7 +43,7 @@ pub struct Case {
     pub message: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct History {
     pub id: String,
     pub ban: u16,
@@ -49,7 +51,7 @@ pub struct History {
     pub mute: u16,
 }
 
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, Serialize, Deserialize, Default, Clone)]
 pub struct GuildDb {
     pub gid: String,
     pub cases: Vec<Case>,
@@ -138,15 +140,23 @@ impl GuildDb {
     }
 
     #[inline(always)]
-    pub fn update_case(mut self, case_id: u32, action: CaseUpdateAction, value: CaseUpdateValue) -> Self {
+    pub fn update_case(
+        mut self,
+        case_id: u32,
+        action: CaseUpdateAction,
+        value: CaseUpdateValue,
+    ) -> Self {
         let c = self.cases.iter_mut().find(|c| c.id == case_id).unwrap();
 
-        if let CaseUpdateAction::Reason = action {
-            c.reason = value.reason.unwrap();
-        } else {
-            c.reference = Some(value.reference.unwrap());
+        match action {
+            CaseUpdateAction::Reason => {
+                c.reason = value.reason.unwrap();
+            }
+            CaseUpdateAction::Reference => {
+                c.reference = Some(value.reference.unwrap());
+            }
         };
-        
+
         self
     }
 
@@ -199,26 +209,26 @@ pub struct CaseUpdateValue {
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct ResponseSearchVideoApi {
-    pub items: Vec<SearchVideoItem>
+    pub items: Vec<SearchVideoItem>,
 }
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct SearchVideoItem {
-    pub id: SearchVideoId
+    pub id: SearchVideoId,
 }
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct SearchVideoId {
-    #[serde(rename="videoId")]
-    pub video_id: String
+    #[serde(rename = "videoId")]
+    pub video_id: String,
 }
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct VideoItem {
     pub id: String,
     pub snippet: VideoSnippet,
-    #[serde(rename="contentDetails")]
-    pub content_details: ContentDetails
+    #[serde(rename = "contentDetails")]
+    pub content_details: ContentDetails,
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -228,23 +238,23 @@ pub struct VideoSnippet {
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct ContentDetails {
-   pub  duration: String,
+    pub duration: String,
 }
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct ResponseVideoApi {
-    pub items: Vec<VideoItem>
+    pub items: Vec<VideoItem>,
 }
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct PlaylistSnippet {
-    #[serde(rename="resourceId")]
-    pub resource_id: ResourceId
+    #[serde(rename = "resourceId")]
+    pub resource_id: ResourceId,
 }
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct ResourceId {
-    #[serde(rename="videoId")]
+    #[serde(rename = "videoId")]
     pub video_id: String,
 }
 
@@ -256,7 +266,7 @@ pub struct PlaylistItem {
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct ResponsePlaylistApi {
-    pub items: Vec<PlaylistItem>
+    pub items: Vec<PlaylistItem>,
 }
 
 #[derive(Clone, Debug)]
@@ -281,7 +291,7 @@ struct Artist {
 struct Album {
     pub name: String,
     pub artist: Vec<Artist>,
-    pub external_urls: ExternalUrls
+    pub external_urls: ExternalUrls,
 }
 
 pub struct SongEndNotifier {
@@ -299,12 +309,17 @@ pub struct SongPlayNotifier {
 #[async_trait]
 impl EventHandler for SongEndNotifier {
     async fn act(&self, _ctx: &EventContext<'_>) -> Option<Event> {
-        let _ = self.chan_id
-            .send_message(&self.http, Valeriyya::msg_reply().add_embed(
-                Valeriyya::embed()
-                    .description(format!("{} has finished.", self.metadata.title))
-                    .title("Song information")
-            )).await;
+        let _ = self
+            .chan_id
+            .send_message(
+                &self.http,
+                Valeriyya::msg_reply().add_embed(
+                    Valeriyya::embed()
+                        .description(format!("{} has finished.", self.metadata.title))
+                        .title("Song information"),
+                ),
+            )
+            .await;
 
         None
     }
@@ -313,16 +328,21 @@ impl EventHandler for SongEndNotifier {
 #[async_trait]
 impl EventHandler for SongPlayNotifier {
     async fn act(&self, _ctx: &EventContext<'_>) -> Option<Event> {
-        let _ = self.chan_id
-            .send_message(&self.http, Valeriyya::msg_reply().add_embed(
-                Valeriyya::embed()
-                    .description(format!(
-                        "Playing [{}]({})",
-                        self.metadata.title,
-                        format_args!("https://youtu.be/{}", self.metadata.id)
-                    ))
-                    .title("Song information")
-            )).await;
+        let _ = self
+            .chan_id
+            .send_message(
+                &self.http,
+                Valeriyya::msg_reply().add_embed(
+                    Valeriyya::embed()
+                        .description(format!(
+                            "Playing [{}]({})",
+                            self.metadata.title,
+                            format_args!("https://youtu.be/{}", self.metadata.id)
+                        ))
+                        .title("Song information"),
+                ),
+            )
+            .await;
 
         None
     }

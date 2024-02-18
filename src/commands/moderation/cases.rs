@@ -27,9 +27,9 @@ pub async fn cases(
 ) -> Result<(), Error> {
     let database = &ctx.data().database();
 
-    let guild_id = ctx.guild_id().unwrap().0;
+    let guild_id = ctx.guild_id().unwrap().get();
 
-    let mut db = Valeriyya::get_database(database, guild_id.to_string()).await;
+    let mut db = Valeriyya::get_database(database, guild_id).await;
     let staff = get_guild_member(ctx).await?.unwrap();
 
     if let OptionChoices::Show = option {
@@ -41,7 +41,7 @@ pub async fn cases(
         }
         
         let case = case.unwrap();
-        let target_user = UserId(case.target_id.parse::<std::num::NonZeroU64>().unwrap()).to_user(ctx.discord()).await?.tag();
+        let target_user = UserId::new(case.target_id.parse::<u64>().unwrap()).to_user(ctx.serenity_context()).await?.tag();
 
         ctx.send(Valeriyya::reply_default().embed(create_embed(ctx, staff, case, target_user))).await?;
     } else if let OptionChoices::Delete = option {
@@ -72,36 +72,32 @@ pub async fn cases(
     Ok(())
 }
 
-fn create_embed(ctx: Context<'_>, staff: Member, case: &Case, target_user: String) -> CreateEmbed {
-    let mut embed = Valeriyya::embed()
-            .author(Valeriyya::reply_author(format!("{} ({})", staff.user.tag(), staff.user.id)).icon_url(staff.user.face()))
-            .thumbnail(ctx.guild().unwrap().icon_url().unwrap())
-            .timestamp(Timestamp::from(&Timestamp::from_unix_timestamp(case.date).unwrap()))
-            .footer(Valeriyya::reply_footer(format!("Case {}", case.id)));
-        if ActionTypes::Mute == case.action && case.reference.is_some() {
-            embed = embed
-            .description(format!(
-                "Member: `{}`\nAction: `{:?}`\nReason: `{}`\nExpiration:<t:{}:R>\nReference: `{}`",
-                target_user, case.action, case.reason, case.expiration.unwrap(), case.reference.unwrap()
-            ));
-        } else if ActionTypes::Mute == case.action {
-            embed = embed
-            .description(format!(
-                "Member: `{}`\nAction: `{:?}`\nReason: `{}`\nExpiration:<t:{}:R>",
-                target_user, case.action, case.reason, case.expiration.unwrap()
-            ));
-        } else if case.reference.is_some() {
-            embed = embed
-            .description(format!(
-                "Member: `{}`\nAction: `{:?}`\nReason: `{}`\nReference: `{}`",
-                target_user, case.action, case.reason, case.reference.unwrap()
-            ));
-        } else {
-            embed = embed
-            .description(format!(
-                "Member: `{}`\nAction: `{:?}`\nReason: {}\n",
-                target_user, case.action, case.reason
-            ));
-        }
-        embed
+fn create_embed<'a>(ctx: Context<'_>, staff: Member, case: &Case, target_user: String) -> CreateEmbed<'a> {
+    let expiration_text = case.expiration.map(|exp| format!("<t:{}:R>", exp));
+
+    let description = match (&case.action, &expiration_text, case.reference) {
+        (ActionTypes::Mute, Some(exp), Some(reference)) => {
+            format!("Member: `{}`\nAction: `{:?}`\nReason: `{}`\nExpiration: {}\nReference: `{}`",
+                target_user, case.action, case.reason, exp, reference)
+        },
+        (ActionTypes::Mute, Some(exp), None) => {
+            format!("Member: `{}`\nAction: `{:?}`\nReason: `{}`\nExpiration: {}",
+                target_user, case.action, case.reason, exp)
+        },
+        (_, _, Some(reference)) => {
+            format!("Member: `{}`\nAction: `{:?}`\nReason: `{}`\nReference: `{}`",
+                target_user, case.action, case.reason, reference)
+        },
+        _ => {
+            format!("Member: `{}`\nAction: `{:?}`\nReason: `{}`",
+                target_user, case.action, case.reason)
+        },
+    };
+
+    Valeriyya::embed()
+        .author(Valeriyya::reply_author(format!("{} ({})", staff.user.tag(), staff.user.id)).icon_url(staff.user.face()))
+        .thumbnail(ctx.guild().unwrap().icon_url().unwrap())
+        .timestamp(Timestamp::from(&Timestamp::from_unix_timestamp(case.date).unwrap()))
+        .footer(Valeriyya::reply_footer(format!("Case {}", case.id)))
+        .description(description)
 }
