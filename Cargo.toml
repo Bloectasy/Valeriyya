@@ -21,6 +21,7 @@ tracing = "0.1.37"
 tracing-subscriber = "0.3.15"
 tracing-futures = "0.2"
 iso8601-duration = "0.2.0"
+dotenv = "0.15.0"
 
 # Serenity Next Branch
 [dependencies.serenity]

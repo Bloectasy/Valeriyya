@@ -6,6 +6,7 @@ use mongodb::options::{ClientOptions, ResolverConfig};
 use mongodb::{Client, Database};
 use poise::serenity_prelude::FullEvent;
 use poise::serenity_prelude::{self, GatewayIntents};
+use dotenv::dotenv;
 
 type Error = Box<dyn std::error::Error + Send + Sync>;
 type Context<'a> = poise::Context<'a, Data, Error>;
@@ -105,6 +106,8 @@ async fn init() -> Result<(), Error> {
 
 #[tokio::main]
 async fn main() {
+    // Load the ".env" file in the project
+    dotenv().ok();
     if let Err(e) = init().await {
         eprintln!("{}", e);
         std::process::exit(1);
