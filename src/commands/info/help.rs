@@ -49,6 +49,9 @@ pub async fn help(ctx: Context<'_>, command: Option<String>) -> Result<(), Error
         let mut categories: HashMap<String, Vec<String>> = HashMap::new();
         
         for command in commands {
+            if command.hide_in_help {
+                continue;
+            };
             let category = command.category.clone().unwrap_or_else(|| "Uncategorized".into());
             categories.entry(category.to_string()).or_insert_with(Vec::new).push(command.name.to_string());
         }
@@ -59,7 +62,6 @@ pub async fn help(ctx: Context<'_>, command: Option<String>) -> Result<(), Error
             
             help_message.push_str(&format!("\n# {}\n", category));
             for command in commands {
-                
                 help_message.push_str(&format!("> {}\n", command));
             }
         }
