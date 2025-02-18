@@ -30,8 +30,10 @@ pub async fn kick(
         ctx.send(Valeriyya::reply("The member can't be managed so you can't kick them!").ephemeral(true)).await?;
         return Ok(());
     }
+
+    
     member
-        .kick_with_reason(ctx.serenity_context(), &reason_default)
+        .kick(ctx.http(), Some(&reason_default))
         .await?;
     let icon_url = ctx
         .guild()
@@ -41,7 +43,7 @@ pub async fn kick(
 
     let message = if guild_db.channels.logs.as_ref().is_some() {
         let sent_msg = ChannelId::new(guild_db.channels.logs.as_ref().unwrap().parse::<u64>().unwrap())
-            .send_message(ctx.serenity_context(), Valeriyya::msg_reply().add_embed(
+            .send_message(ctx.http(), Valeriyya::msg_reply().add_embed(
                 Valeriyya::embed()
                     .author(Valeriyya::reply_author(format!(
                         "{} ({})",

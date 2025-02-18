@@ -50,7 +50,7 @@ pub async fn ban(
             ctx.send(Valeriyya::reply("This member is already banned from this guild.").ephemeral(true)).await?;
         }
         member
-            .ban_with_reason(ctx.http(), 7, &reason_default)
+            .ban(ctx.http(), 7, Some(&reason_default))
             .await?;
 
         let message = if guild_db.channels.logs.as_ref().is_some() {
@@ -63,7 +63,7 @@ pub async fn ban(
                     .parse::<u64>()
                     .unwrap(),
             )
-            .send_message(ctx.serenity_context(), Valeriyya::msg_reply().add_embed(
+            .send_message(ctx.http(), Valeriyya::msg_reply().add_embed(
                 Valeriyya::embed()
                     .author(Valeriyya::reply_author(format!(
                         "{} ({})",
@@ -115,7 +115,7 @@ pub async fn ban(
             ctx.send(Valeriyya::reply("This member is already banned from this guild.").ephemeral(true)).await?;
         }
         guild
-            .ban_with_reason(ctx.http(), user_id, 7, &reason_default)
+            .ban(ctx.http(), user_id, 7, Some(&reason_default))
             .await?;
 
         let message = if guild_db.channels.logs.as_ref().is_some() {
@@ -128,7 +128,7 @@ pub async fn ban(
                     .parse::<u64>()
                     .unwrap(),
             )
-            .send_message(ctx.serenity_context(), Valeriyya::msg_reply().add_embed(
+            .send_message(ctx.http(), Valeriyya::msg_reply().add_embed(
                 Valeriyya::embed()
                     .author(Valeriyya::reply_author(format!(
                         "{} ({})",
