@@ -9,7 +9,9 @@ use poise::serenity_prelude::{Timestamp, ChannelId, Member};
 #[poise::command(
     slash_command,
     category = "Moderation",
-    default_member_permissions = "MODERATE_MEMBERS"
+    default_member_permissions = "MODERATE_MEMBERS",
+    prefix_command,
+    track_edits
 )]
 pub async fn mute(
     ctx: Context<'_>,

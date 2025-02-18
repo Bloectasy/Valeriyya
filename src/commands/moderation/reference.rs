@@ -10,7 +10,9 @@ use crate::{
 #[poise::command(
     slash_command,
     category = "Moderation",
-    default_member_permissions = "MANAGE_GUILD"
+    default_member_permissions = "MANAGE_GUILD",
+    prefix_command,
+    track_edits
 )]
 pub async fn reference(
     ctx: Context<'_>,

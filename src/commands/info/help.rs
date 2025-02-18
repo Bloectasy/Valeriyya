@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use crate::{Context, Error};
 
-#[poise::command(prefix_command, guild_only, hide_in_help)]
+#[poise::command(prefix_command, guild_only, hide_in_help, track_edits)]
 pub async fn help(ctx: Context<'_>, command: Option<String>) -> Result<(), Error> {
     let commands = &ctx.framework().options().commands;
     
@@ -56,8 +56,10 @@ pub async fn help(ctx: Context<'_>, command: Option<String>) -> Result<(), Error
         let mut help_message = "Here are the available commands:\n".to_string();
         
         for (category, commands) in categories {
+            
             help_message.push_str(&format!("\n# {}\n", category));
             for command in commands {
+                
                 help_message.push_str(&format!("> {}\n", command));
             }
         }

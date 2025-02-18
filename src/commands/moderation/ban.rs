@@ -9,7 +9,9 @@ use poise::serenity_prelude::{ChannelId, Timestamp, UserId, Member};
 #[poise::command(
     slash_command,
     category = "Moderation",
-    default_member_permissions = "BAN_MEMBERS"
+    default_member_permissions = "BAN_MEMBERS",
+    prefix_command,
+    track_edits
 )]
 pub async fn ban(
     ctx: Context<'_>,
