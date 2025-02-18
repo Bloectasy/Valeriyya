@@ -1,0 +1,9 @@
+version: '3.8'
+
+services:
+  bot:
+    image: valeriyya
+    build: .
+    restart: unless-stopped
+    env_file:
+      - .env
