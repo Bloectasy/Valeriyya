@@ -21,10 +21,12 @@ pub struct TokenManager {
     client: Client,
     access_token: String,
     expiry_time: Instant,
+    client_id: String,
+    client_secret: String,
 }
 
 impl TokenManager {
-    pub async fn new() -> Self {
+    pub async fn new(client_id: String, client_secret: String) -> Self {
         let client = Client::new();
 
         // Try loading the token from file
@@ -34,17 +36,21 @@ impl TokenManager {
                 client,
                 access_token: token.access_token,
                 expiry_time,
+                client_id,
+                client_secret
             };
         }
 
         // If no stored token, authenticate
-        let auth = Self::authenticate(&client).await;
+        let auth = Self::authenticate(&client, client_id.clone(), client_secret.clone()).await;
         let expiry_time = Instant::now() + Duration::from_secs(auth.expires_in);
 
         let token_manager = Self {
             client,
             access_token: auth.access_token.clone(),
             expiry_time,
+            client_id,
+            client_secret
         };
 
         // Save token to file
@@ -52,19 +58,18 @@ impl TokenManager {
         token_manager
     }
 
-    async fn authenticate(client: &Client) -> AuthResponse {
+    async fn authenticate(client: &Client, client_id: String, client_secret: String) -> AuthResponse {
         let response = client
             .post("https://accounts.spotify.com/api/token")
             .form(&[
                 ("grant_type", "client_credentials"),
                 (
                     "client_id",
-                    &std::env::var("VALERIYYA_SPOTIFY_ID").expect("Spotify CLIENT_ID Not Found!"),
+                    &client_id,
                 ),
                 (
                     "client_secret",
-                    &std::env::var("VALERIYYA_SPOTIFY_SECRET")
-                        .expect("Spotify CLIENT_SECRET Not Found!"),
+                    &client_secret,
                 ),
             ])
             .send()
@@ -84,7 +89,7 @@ impl TokenManager {
     // Updated refresh_token method, behaves like authenticate.
     pub async fn refresh_token(&mut self) {
         // Authenticate again since there's no refresh token.
-        let auth = Self::authenticate(&self.client).await;
+        let auth = Self::authenticate(&self.client, self.client_id.clone(), self.client_secret.clone()).await;
         self.access_token = auth.access_token;
         self.expiry_time = Instant::now() + Duration::from_secs(auth.expires_in);
 

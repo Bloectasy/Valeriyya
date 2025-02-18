@@ -79,7 +79,7 @@ async fn search_video(
 async fn get_metadata(ctx: Context<'_>, url: impl Into<String>, playlist: bool) -> Vec<Video> {
     let url = url.into();
     let reqwest_client = reqwest::Client::new();
-    let api_key = ctx.data().api_key.clone();
+    let api_key = ctx.data().youtube_api_key.clone();
 
     let id = if playlist {
         regex!(r"(?:(?:PL|LL|EC|UU|FL|RD|UL|TL|PU|OLAK5uy_)[0-9A-Za-z-_]{10,}|RDMM)")

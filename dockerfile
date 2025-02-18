@@ -9,8 +9,6 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /usr/src/bot
 COPY Cargo.toml Cargo.lock ./
 
-# RUN cargo fetch
-
 COPY . .
 
 RUN cargo build --release
