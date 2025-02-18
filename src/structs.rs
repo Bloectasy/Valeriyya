@@ -66,7 +66,7 @@ impl GuildDb {
         let guild_id_clone = guild_id.into().clone();
         let db = db.collection::<GuildDb>("guild");
         let db_guild = db
-            .find_one(doc! { "gid": guild_id_clone.clone() }, None)
+            .find_one(doc! { "gid": guild_id_clone.clone() })
             .await
             .unwrap();
 
@@ -74,12 +74,11 @@ impl GuildDb {
             guilddb
         } else {
             let doc = Self::default().guild_id(guild_id_clone);
-            let id = db.insert_one(doc, None).await.unwrap();
+            let id = db.insert_one(doc).await.unwrap();
             db.find_one(
                 doc! {
                     "_id": id.inserted_id,
-                },
-                None,
+                }
             )
             .await
             .unwrap()
@@ -166,8 +165,7 @@ impl GuildDb {
             doc! { "gid": self.gid.clone() },
             doc! {
                 "$set": bson::to_document(&self).unwrap()
-            },
-            None,
+            }
         )
         .await
         .unwrap()
@@ -259,6 +257,7 @@ pub struct ResourceId {
 }
 
 #[derive(Deserialize, Debug, Clone)]
+#[allow(dead_code)]
 pub struct PlaylistItem {
     pub id: String,
     pub snippet: PlaylistSnippet,

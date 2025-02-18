@@ -255,18 +255,19 @@ pub async fn member_managable(ctx: Context<'_>, member: &Member) -> bool {
     let highest_me_role: RoleId = if me.roles.is_empty() {
         RoleId::new(guild_id.everyone_role().get())
     } else {
-        me.highest_role_info(&ctx.serenity_context().cache)
-            .unwrap()
-            .0
+        let roles = member.roles(&ctx.serenity_context().cache).unwrap_or_else(|| vec![]);
+        roles.first().unwrap().id
     };
 
     let member_highest_role: RoleId = if member.roles.is_empty() {
         RoleId::new(guild_id.everyone_role().get())
     } else {
-        member
-            .highest_role_info(&ctx.serenity_context().cache)
-            .unwrap()
-            .0
+        let roles = member.roles(&ctx.serenity_context().cache).unwrap_or_else(|| vec![]);
+        roles.first().unwrap().id
+        // member
+            // .highest_role_info(&ctx.serenity_context().cache)
+            // .unwrap()
+            // .0
     };
 
     compare_role_position(ctx, highest_me_role, member_highest_role) > 0

@@ -14,36 +14,43 @@ serde_json = "1.0.105"
 regex = "1.9.5"
 bson = "2.7.0"
 once_cell = "1.7"
-reqwest = "0.11.11"
+reqwest = "0.12.12"
 ytextract = "0.11.2"
 futures = { version = "0.3.28", features = ["std"], default-features = false }
 tracing = "0.1.37"
 tracing-subscriber = "0.3.15"
 tracing-futures = "0.2"
 iso8601-duration = "0.2.0"
+dotenv = "0.15.0"
+
+[dependencies.spotify_auth]
+path = "./spotify"
 
 # Serenity Next Branch
 [dependencies.serenity]
 git = "https://github.com/serenity-rs/serenity"
 default-features = false
-features = ["builder", "cache", "client", "gateway", "http", "model", "utils", "rustls_backend", "chrono", "voice", "framework"]
-rev = "5536d0400f14642867ed07ab0865315754a86a1b"
+features = ["builder", "cache", "gateway", "http", "model", "utils", "rustls_backend", "chrono", "voice", "framework"]
+# rev = "5536d0400f14642867ed07ab0865315754a86a1b"
+branch = "next"
 
 # Poise Serenity-Next Branch
 [dependencies.poise]
 git = "https://github.com/serenity-rs/poise"
-rev = "70c7b26613a209e9a626772bdd1dbe8e1bd74bce"
+# rev = "70c7b26613a209e9a626772bdd1dbe8e1bd74bce"
+branch = "serenity-next"
 
 [dependencies.mongodb]
-version = "2.8.1"
+version = "3.2.1"
 default-features = false
-features = ["async-std-runtime"]
+features = ["openssl-tls", "compat-3-0-0", "dns-resolver"]
 
 # Songbird Symphonia Branch
 [dependencies.songbird]
 git = "https://github.com/serenity-rs/songbird"
 features = ["builtin-queue"]
-rev = "ea7cfd97dc2363870248505537d2aa94107fb23b"
+# rev = "ea7cfd97dc2363870248505537d2aa94107fb23b"
+branch = "serenity-next"
 
 [dependencies.symphonia]
 version = "0.5.2"

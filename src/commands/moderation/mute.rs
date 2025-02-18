@@ -72,7 +72,7 @@ pub async fn mute(
                 .parse::<u64>()
                 .unwrap(),
         )
-        .send_message(ctx.serenity_context(), Valeriyya::msg_reply().embed(
+        .send_message(ctx.http(), Valeriyya::msg_reply().embed(
             Valeriyya::embed()
                 .author(Valeriyya::reply_author(format!("{} ({})", ctx.author().tag(), ctx.author().id)).icon_url(ctx.author().face()))
                 .thumbnail(&icon_url)
