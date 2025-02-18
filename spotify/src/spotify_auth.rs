@@ -21,12 +21,10 @@ pub struct TokenManager {
     client: Client,
     access_token: String,
     expiry_time: Instant,
-    client_id: String,
-    client_secret: String,
 }
 
 impl TokenManager {
-    pub async fn new(client_id: String, client_secret: String) -> Self {
+    pub async fn new() -> Self {
         let client = Client::new();
 
         // Try loading the token from file
@@ -36,21 +34,17 @@ impl TokenManager {
                 client,
                 access_token: token.access_token,
                 expiry_time,
-                client_id,
-                client_secret
             };
         }
 
         // If no stored token, authenticate
-        let auth = Self::authenticate(&client, client_id.clone(), client_secret.clone()).await;
+        let auth = Self::authenticate(&client).await;
         let expiry_time = Instant::now() + Duration::from_secs(auth.expires_in);
 
         let token_manager = Self {
             client,
             access_token: auth.access_token.clone(),
             expiry_time,
-            client_id,
-            client_secret
         };
 
         // Save token to file
@@ -58,18 +52,18 @@ impl TokenManager {
         token_manager
     }
 
-    async fn authenticate(client: &Client, client_id: String, client_secret: String) -> AuthResponse {
+    async fn authenticate(client: &Client) -> AuthResponse {
         let response = client
             .post("https://accounts.spotify.com/api/token")
             .form(&[
                 ("grant_type", "client_credentials"),
                 (
                     "client_id",
-                    &client_id,
+                    &std::env::var("VALERIYYA_SPOTIFY_ID").expect("(SPOTIFY_CLIENT_ID IS NOT PRESENT)"),
                 ),
                 (
                     "client_secret",
-                    &client_secret,
+                    &std::env::var("VALERIYYA_SPOTIFY_SECRET").expect("(SPOTIFY_CLIENT_SECRET IS NOT PRESENT)"),
                 ),
             ])
             .send()
@@ -78,7 +72,6 @@ impl TokenManager {
 
         // Log the raw response
         let body = response.text().await.expect("Failed to read response body");
-        println!("Raw response body: {}", body);
 
         let auth_response: AuthResponse =
             serde_json::from_str(&body).expect("Failed to parse token response");
@@ -89,7 +82,7 @@ impl TokenManager {
     // Updated refresh_token method, behaves like authenticate.
     pub async fn refresh_token(&mut self) {
         // Authenticate again since there's no refresh token.
-        let auth = Self::authenticate(&self.client, self.client_id.clone(), self.client_secret.clone()).await;
+        let auth = Self::authenticate(&self.client).await;
         self.access_token = auth.access_token;
         self.expiry_time = Instant::now() + Duration::from_secs(auth.expires_in);
 

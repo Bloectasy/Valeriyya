@@ -17,8 +17,6 @@ type Context<'a> = poise::Context<'a, Data, Error>;
 pub struct Data {
     db_client: Client,
     youtube_api_key: String,
-    spotify_id: String,
-    spotify_secret: String,
     songbird: std::sync::Arc<songbird::Songbird>,
 }
 
@@ -49,9 +47,7 @@ async fn init() -> Result<(), Error> {
     let discord_token = Token::from_env("VALERIYYA_DISCORD_TOKEN").expect("(DISCORD_TOKEN IS NOT PRESENT)");
     let database_url = std::env::var("VALERIYYA_MONGODB").expect("(MONGODB_TOKEN IS NOT PRESENT)");
     let youtube_api_key = std::env::var("VALERIYYA_YOUTUBE_API_KEY").expect("(API_TOKEN IS NOT PRESENT)");
-    let spotify_id = std::env::var("VALERIYYA_SPOTIFY_ID").expect("(SPOTIFY_CLIENT_ID IS NOT PRESENT)");
-    let spotify_secret = std::env::var("VALERIYYA_SPOTIFY_SECRET").expect("(SPOTIFY_CLIENT_SECRET IS NOT PRESENT)");
-
+   
     let songbird = songbird::Songbird::serenity();
 
     let database_options =
@@ -91,15 +87,13 @@ async fn init() -> Result<(), Error> {
     let data = Data {
         db_client,
         youtube_api_key,
-        spotify_id,
-        spotify_secret,
         songbird: songbird.clone(),
     };
 
     let framework = poise::Framework::new(options);
 
     let mut client = serenity_prelude::ClientBuilder::new(discord_token.clone(), discord_intents)
-        // .voice_manager_arc(songbird)
+        .voice_manager::<songbird::Songbird>(songbird)
         .framework(framework)
         .data(std::sync::Arc::new(data))
         .await
@@ -115,11 +109,7 @@ async fn main() {
     dotenv().ok();
     
     // spotify testing area
-    let spotify_id = std::env::var("VALERIYYA_SPOTIFY_ID").expect("(SPOTIFY_CLIENT_ID IS NOT PRESENT)");
-    let spotify_secret = std::env::var("VALERIYYA_SPOTIFY_SECRET").expect("(SPOTIFY_CLIENT_SECRET IS NOT PRESENT)");
-
-    let mut spotify_token = TokenManager::new(spotify_id, spotify_secret).await;
-    println!("{:#?}", spotify_token.get_token().await);
+    let mut spotify_token = TokenManager::new().await;
     
     
     
