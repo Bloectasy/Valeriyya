@@ -59,12 +59,11 @@ impl TokenManager {
                 ("grant_type", "client_credentials"),
                 (
                     "client_id",
-                    &std::env::var("VALERIYYA_SPOTIFY_ID").expect("Spotify CLIENT_ID Not Found!"),
+                    &std::env::var("VALERIYYA_SPOTIFY_ID").expect("(SPOTIFY_CLIENT_ID IS NOT PRESENT)"),
                 ),
                 (
                     "client_secret",
-                    &std::env::var("VALERIYYA_SPOTIFY_SECRET")
-                        .expect("Spotify CLIENT_SECRET Not Found!"),
+                    &std::env::var("VALERIYYA_SPOTIFY_SECRET").expect("(SPOTIFY_CLIENT_SECRET IS NOT PRESENT)"),
                 ),
             ])
             .send()
@@ -73,7 +72,6 @@ impl TokenManager {
 
         // Log the raw response
         let body = response.text().await.expect("Failed to read response body");
-        println!("Raw response body: {}", body);
 
         let auth_response: AuthResponse =
             serde_json::from_str(&body).expect("Failed to parse token response");

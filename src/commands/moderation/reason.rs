@@ -8,7 +8,7 @@ use crate::{
 
 
 #[doc = "Changes the reason of a case."]
-#[poise::command(slash_command, category = "Moderation", default_member_permissions="MANAGE_GUILD")]
+#[poise::command(slash_command, category = "Moderation", default_member_permissions="MANAGE_GUILD", prefix_command, track_edits)]
 pub async fn reason(
     ctx: Context<'_>,
     #[description = "The case to assign a reason."] case: u32,
