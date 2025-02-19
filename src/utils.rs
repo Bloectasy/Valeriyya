@@ -230,61 +230,62 @@ pub async fn get_guild_member(ctx: Context<'_>) -> Result<Option<Member>, Error>
     })
 }
 
-pub async fn member_managable(ctx: Context<'_>, member: &Member) -> bool {
+pub async fn member_managable<'a>(ctx: Context<'_>, member: &Member) -> bool {
+    let bot_id = ctx.serenity_context().cache.current_user().id;
     {
-        let guild = ctx.guild().unwrap();
-        if member.user.id == guild.owner_id {
-            return false;
-        }
-        if member.user.id == ctx.serenity_context().cache.current_user().id {
-            return false;
-        }
-        if ctx.serenity_context().cache.current_user().id == guild.owner_id {
-            return true;
-        }
+        let guild = match ctx.guild() {
+            Some(g) => g,
+            None => return false,
+        };
+    
+        if member.user.id == guild.owner_id || member.user.id == bot_id { return false; }
+        if bot_id == guild.owner_id { return true; }
     }
 
     let guild_id = ctx.guild_id().unwrap();
-
-    let user_id = ctx.serenity_context().cache.current_user().id;
-    let me = guild_id
-        .member(ctx.serenity_context(), user_id)
-        .await
-        .unwrap();
-
-    let highest_me_role: RoleId = if me.roles.is_empty() {
-        RoleId::new(guild_id.everyone_role().get())
-    } else {
-        let roles = member.roles(&ctx.serenity_context().cache).unwrap_or_else(|| vec![]);
-        roles.first().unwrap().id
+    
+    let bot_member = match guild_id.member(ctx.serenity_context(), bot_id).await {
+            Ok(m) => m,
+        Err(_) => return false,
     };
 
-    let member_highest_role: RoleId = if member.roles.is_empty() {
-        RoleId::new(guild_id.everyone_role().get())
-    } else {
-        let roles = member.roles(&ctx.serenity_context().cache).unwrap_or_else(|| vec![]);
-        roles.first().unwrap().id
-        // member
-            // .highest_role_info(&ctx.serenity_context().cache)
-            // .unwrap()
-            // .0
-    };
+    let highest_me_role = bot_member
+        .roles
+        .iter()
+        .filter_map(|role_id| ctx.guild().unwrap().roles.get(role_id).cloned())
+        .max_by_key(|role| role.position)
+        .map(|role| role.id)
+        .unwrap_or_else(|| guild_id.everyone_role());
 
-    compare_role_position(ctx, highest_me_role, member_highest_role) > 0
+    let highest_member_role = member
+        .roles
+        .iter()
+        .filter_map(|role_id| ctx.guild().unwrap().roles.get(role_id).cloned())
+        .max_by_key(|role| role.position)
+        .map(|role| role.id)
+        .unwrap_or_else(|| guild_id.everyone_role());
+
+    compare_role_position(ctx, highest_me_role, highest_member_role) > 0
 }
 
 pub fn compare_role_position(ctx: Context<'_>, role1: RoleId, role2: RoleId) -> i64 {
     let guild = ctx.guild().unwrap();
 
-    let r1 = guild.roles.get(&role1).unwrap();
-    let r2 = guild.roles.get(&role2).unwrap();
+    let r1 = guild.roles.get(&role1);
+    let r2 = guild.roles.get(&role2);
 
-    if r1.position == r2.position {
-        return i64::from(r2.id) - i64::from(r1.id);
+    match (r1, r2) {
+        (Some(role1), Some(role2)) => {
+            if role1.position == role2.position {
+                return i64::from(role2.id) - i64::from(role1.id);
+            }
+            (role1.position - role2.position).into()
+        }
+        _ => 0,
     }
-
-    (r1.position - r2.position).into()
 }
+
+       
 
 pub const PURPLE_COLOR: Color = Color::from_rgb(82, 66, 100);
 
