@@ -14,12 +14,12 @@ pub enum ChannelTypeChoices {
 }
 
 #[doc = "Changes the settings in this guild."]
-#[poise::command(slash_command, category = "Settings", subcommands("channel", "role"), default_member_permissions="MANAGE_GUILD")]
+#[poise::command(slash_command, category = "Settings", subcommands("channel", "role"), default_member_permissions="MANAGE_GUILD", prefix_command, track_edits)]
 pub async fn settings(_ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
 
-#[poise::command(slash_command, category = "Settings")]
+#[poise::command(slash_command, category = "Settings", prefix_command, track_edits)]
 pub async fn channel(
     ctx: Context<'_>,
     #[description = "Select a channel setting."]
@@ -54,7 +54,7 @@ pub enum RoleTypeChoices {
     Mute,
 }
 
-#[poise::command(slash_command, category = "Settings")]
+#[poise::command(slash_command, category = "Settings", prefix_command, track_edits)]
 pub async fn role(
     ctx: Context<'_>,
     #[description = "Select a role setting."]

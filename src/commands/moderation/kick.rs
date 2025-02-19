@@ -10,7 +10,9 @@ use crate::{
 #[poise::command(
     slash_command,
     category = "Moderation",
-    default_member_permissions = "KICK_MEMBERS"
+    default_member_permissions = "KICK_MEMBERS",
+    prefix_command,
+    track_edits
 )]
 pub async fn kick(
     ctx: Context<'_>,
