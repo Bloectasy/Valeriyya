@@ -15,6 +15,7 @@ use crate::utils::Valeriyya;
 pub struct GuildDbChannels {
     pub logs: Option<String>,
     pub welcome: Option<String>,
+    pub starboard: Option<String>,
 }
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
 pub struct GuildDbRoles {
@@ -62,27 +63,32 @@ pub struct GuildDb {
 }
 
 impl GuildDb {
-    pub async fn new(db: &Database, guild_id: impl Into<String>) -> Self {
-        let guild_id_clone = guild_id.into().clone();
-        let db = db.collection::<GuildDb>("guild");
-        let db_guild = db
-            .find_one(doc! { "gid": guild_id_clone.clone() })
-            .await
-            .unwrap();
+    pub async fn new(db: &Database, guild_id: impl Into<String>) -> Result<Self, mongodb::error::Error> {
+        let guild_id = guild_id.into();
+        let collection = db.collection::<GuildDb>("guild");
 
-        if let Some(guilddb) = db_guild {
-            guilddb
+        if let Some(guilddb) = collection
+            .find_one(doc! { "gid": &guild_id })
+            .await?
+        {
+            return Ok(guilddb);
+        }
+
+        let new_guild = Self::default().guild_id(guild_id.clone());
+        let insert_result = collection.insert_one(&new_guild).await?;
+
+        if let Some(inserted_guild) = collection
+            .find_one(doc! { "_id": insert_result.inserted_id })
+            .await?
+        {
+            Ok(inserted_guild)
         } else {
-            let doc = Self::default().guild_id(guild_id_clone);
-            let id = db.insert_one(doc).await.unwrap();
-            db.find_one(
-                doc! {
-                    "_id": id.inserted_id,
-                }
-            )
-            .await
-            .unwrap()
-            .unwrap()
+            Err(mongodb::error::Error::from(
+                mongodb::error::Error::from(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    "Failed to retrieve inserted document",
+                )),
+            ))
         }
     }
 
@@ -185,6 +191,13 @@ impl GuildDbChannels {
         self.welcome = welcome;
         self
     }
+    
+    #[inline(always)]
+    pub fn set_starboard_channel(mut self, starboard: Option<String>) -> Self {
+        self.starboard = starboard;
+        self
+    }
+
 }
 
 impl GuildDbRoles {

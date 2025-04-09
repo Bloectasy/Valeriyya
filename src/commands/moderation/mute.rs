@@ -35,7 +35,7 @@ pub async fn mute(
     let database = &ctx.data().database();
     let guild_id = ctx.guild_id().unwrap().get();
 
-    let mut guild_db = Valeriyya::get_database(database, guild_id).await;
+    let mut guild_db = Valeriyya::get_database(database, guild_id).await?;
     let case_number = guild_db.cases_number + 1;
     let reason_default = reason.unwrap_or_else(|| format!("Use /reason {} <...reason> to seat a reason for this case.", case_number));
 

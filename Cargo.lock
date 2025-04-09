@@ -268,18 +268,20 @@ dependencies = [
 
 [[package]]
 name = "bson"
-version = "2.13.0"
+version = "2.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "068208f2b6fcfa27a7f1ee37488d2bb8ba2640f68f5475d08e1d9130696aba59"
+checksum = "af8113ff51309e2779e8785a246c10fb783e8c2452f134d6257fd71cc03ccd6c"
 dependencies = [
  "ahash",
- "base64 0.13.1",
+ "base64 0.22.1",
  "bitvec",
+ "getrandom 0.2.15",
+ "getrandom 0.3.1",
  "hex",
  "indexmap 2.7.1",
  "js-sys",
  "once_cell",
- "rand 0.8.5",
+ "rand 0.9.0",
  "serde",
  "serde_bytes",
  "serde_json",
@@ -1004,8 +1006,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "43a49c392881ce6d5c3b8cb70f98717b7c07aabbdff06687b9030dbfbe2725f8"
 dependencies = [
  "cfg-if",
+ "js-sys",
  "libc",
  "wasi 0.13.3+wasi-0.2.2",
+ "wasm-bindgen",
  "windows-targets 0.52.6",
 ]
 
@@ -1341,19 +1345,6 @@ dependencies = [
  "tokio-rustls 0.26.1",
  "tower-service",
  "webpki-roots 0.26.8",
-]
-
-[[package]]
-name = "hyper-tls"
-version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d6183ddfa99b85da61a140bea0efc93fdf56ceaa041b37d553518030827f9905"
-dependencies = [
- "bytes",
- "hyper 0.14.32",
- "native-tls",
- "tokio",
- "tokio-native-tls",
 ]
 
 [[package]]
@@ -1826,9 +1817,9 @@ dependencies = [
 
 [[package]]
 name = "mongodb"
-version = "3.2.1"
+version = "3.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9a93560fa3ec754ed9aa0954ae8307c5997150dbba7aa735173b514660088475"
+checksum = "fdf4261933e5113914caec01c4bb16a7502bdaa9cf80fd87191765e7d9ff16b2"
 dependencies = [
  "async-trait",
  "base64 0.13.1",
@@ -1875,9 +1866,9 @@ dependencies = [
 
 [[package]]
 name = "mongodb-internal-macros"
-version = "3.2.1"
+version = "3.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "79b3dace6c4f33db61d492b3d3b02f4358687a1eb59457ffef6f6cfe461cdb54"
+checksum = "619176c99deef0d50be51ce3193e9efd6a56ab0f4e6a38d5fd614880d148c7ae"
 dependencies = [
  "macro_magic",
  "proc-macro2",
@@ -2499,12 +2490,10 @@ dependencies = [
  "http-body 0.4.6",
  "hyper 0.14.32",
  "hyper-rustls 0.24.2",
- "hyper-tls 0.5.0",
  "ipnet",
  "js-sys",
  "log",
  "mime",
- "native-tls",
  "once_cell",
  "percent-encoding",
  "pin-project-lite",
@@ -2516,7 +2505,6 @@ dependencies = [
  "sync_wrapper 0.1.2",
  "system-configuration 0.5.1",
  "tokio",
- "tokio-native-tls",
  "tokio-rustls 0.24.1",
  "tokio-util",
  "tower-service",
@@ -2546,7 +2534,7 @@ dependencies = [
  "http-body-util",
  "hyper 1.6.0",
  "hyper-rustls 0.27.5",
- "hyper-tls 0.6.0",
+ "hyper-tls",
  "hyper-util",
  "ipnet",
  "js-sys",
@@ -3317,7 +3305,7 @@ dependencies = [
 name = "spotify_auth"
 version = "0.1.0"
 dependencies = [
- "reqwest 0.11.27",
+ "reqwest 0.12.12",
  "serde",
  "serde_json",
  "tokio",
@@ -4427,7 +4415,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8c1f41ffb7cf259f1ecc2876861a17e7142e63ead296f671f81f6ae85903e0d6"
 dependencies = [
  "getrandom 0.3.1",
+ "js-sys",
  "serde",
+ "wasm-bindgen",
 ]
 
 [[package]]

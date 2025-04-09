@@ -1,6 +1,5 @@
 use crate::{
-    structs::{GuildDb, GuildDbChannels, GuildDbRoles},
-    Context, Error,
+    structs::{GuildDbChannels, GuildDbRoles}, utils::Valeriyya, Context, Error
 };
 
 use poise::serenity_prelude::Mentionable;
@@ -11,6 +10,8 @@ pub enum ChannelTypeChoices {
     Logs,
     #[name = "welcome"]
     Welcome,
+    #[name = "starboard"]
+    Starboard,
 }
 
 #[doc = "Changes the settings in this guild."]
@@ -30,16 +31,20 @@ pub async fn channel(
     channel: poise::serenity_prelude::GuildChannel,
 ) -> Result<(), Error> {
     let database = &ctx.data().database();
-    let guild_id = ctx.guild_id().unwrap();
+    let guild_id = ctx.guild_id().unwrap().get();
 
-    let mut db = GuildDb::new(database, guild_id.to_string()).await;
+    let mut db = Valeriyya::get_database(database, guild_id).await?;
+
     if let ChannelTypeChoices::Logs = type_option {
         db = db.set_channels(GuildDbChannels::default().set_logs_channel(Some(channel.id.to_string())));
         ctx.say(format!("The logs channel has been updated to {}.", channel.mention())).await?;
     } else if let ChannelTypeChoices::Welcome = type_option {
         db = db.set_channels(GuildDbChannels::default().set_welcome_channel(Some(channel.id.to_string())));
         ctx.say(format!("The welcome channel has been updated to {}.", channel.mention())).await?;
-    };
+    } else if let ChannelTypeChoices::Starboard = type_option {
+        db = db.set_channels(GuildDbChannels::default().set_starboard_channel(Some(channel.id.to_string())));
+        ctx.say(format!("The starboard channel has been updated to {}.", channel.mention())).await?;
+    }
 
     db.execute(database).await;
 
@@ -67,7 +72,7 @@ pub async fn role(
     let database = &ctx.data().database();
     let guild_id = ctx.guild_id().unwrap().get();
 
-    let mut db = GuildDb::new(database, guild_id.to_string()).await;
+    let mut db = Valeriyya::get_database(database, guild_id).await?;
     if let RoleTypeChoices::Staff = type_option {
         db = db.set_roles(GuildDbRoles::default().set_staff_role(Some(role.id.to_string())));
         ctx.say(format!("The staff role has been updated to {}.", role.mention())).await?;

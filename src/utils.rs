@@ -332,7 +332,7 @@ impl Valeriyya {
         string_to_sec(raw_text)
     }
 
-    pub async fn get_database(db: &Database, guild_id: u64) -> GuildDb {
+    pub async fn get_database(db: &Database, guild_id: u64) -> Result<GuildDb, mongodb::error::Error> {
         GuildDb::new(db, guild_id.to_string()).await
     }
 

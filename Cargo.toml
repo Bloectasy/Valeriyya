@@ -41,7 +41,7 @@ git = "https://github.com/serenity-rs/poise"
 branch = "serenity-next"
 
 [dependencies.mongodb]
-version = "3.2.1"
+version = "3.2.3"
 default-features = false
 features = ["openssl-tls", "compat-3-0-0", "dns-resolver"]
 

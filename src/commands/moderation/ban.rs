@@ -33,7 +33,7 @@ pub async fn ban(
         .icon_url()
         .unwrap_or(String::from(""));
 
-    let mut guild_db = Valeriyya::get_database(database, guild_id).await;
+    let mut guild_db = Valeriyya::get_database(database, guild_id).await?;
     let case_number = guild_db.cases_number + 1;
     let reason_default = reason.unwrap_or(format!("Use /reason {} <...reason> to set a reason for this case.", case_number));
 

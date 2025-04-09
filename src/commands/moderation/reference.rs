@@ -1,7 +1,7 @@
 use poise::serenity_prelude::{ChannelId, MessageId, Timestamp, UserId};
 
 use crate::{
-    structs::{ActionTypes, GuildDb, CaseUpdateAction, CaseUpdateValue},
+    structs::{ActionTypes, CaseUpdateAction, CaseUpdateValue},
     utils::Valeriyya,
     Context, Error,
 };
@@ -21,7 +21,7 @@ pub async fn reference(
 ) -> Result<(), Error> {
     let database = &ctx.data().database();
     let guild_id = ctx.guild_id().unwrap().get();
-    let mut db = GuildDb::new(database, guild_id.to_string()).await;
+    let mut db = Valeriyya::get_database(database, guild_id).await?;
 
     let db_cases = db.cases.clone();
 

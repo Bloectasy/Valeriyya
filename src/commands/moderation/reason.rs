@@ -16,7 +16,7 @@ pub async fn reason(
 ) -> Result<(), Error> {
     let database = &ctx.data().database();
     let guild_id = ctx.guild_id().unwrap().get();
-    let mut db = Valeriyya::get_database(database, guild_id).await;
+    let mut db = Valeriyya::get_database(database, guild_id).await?;
 
     let case_find = match db.cases.iter().find(|c| c.id == case) {
         Some(c) => c.clone(),

@@ -18,6 +18,9 @@ FROM debian:bullseye-slim
 RUN apt-get update && apt-get install -y \
     libssl-dev \
     ca-certificates \
+    python3 \
+    python3-pip \
+    && pip3 install yt-dlp \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /usr/src/bot

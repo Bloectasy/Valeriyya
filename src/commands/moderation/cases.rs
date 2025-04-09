@@ -31,7 +31,7 @@ pub async fn cases(
 
     let guild_id = ctx.guild_id().unwrap().get();
 
-    let mut db = Valeriyya::get_database(database, guild_id).await;
+    let mut db = Valeriyya::get_database(database, guild_id).await?;
     let staff = get_guild_member(ctx).await?.unwrap();
 
     if let OptionChoices::Show = option {
