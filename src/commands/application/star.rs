@@ -41,7 +41,7 @@ pub async fn star(
             }
         }
         
-        ctx.reply("Successfully stared the message!").await?;
+        ctx.reply("Successfully starred the message!").await?;
         webhook
             .execute(
                 ctx.http(),
@@ -53,7 +53,7 @@ pub async fn star(
             .await
             .unwrap();
 
-        webhook.delete(ctx.http(), Some("Stared a Message")).await?;
+        webhook.delete(ctx.http(), Some("Starred a Message")).await?;
 
     } else {
         ctx.reply("There is no starboard channel set!\nUse `settings channels starboard <channel>`").await?;
