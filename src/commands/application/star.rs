@@ -53,6 +53,8 @@ pub async fn star(
             .await
             .unwrap();
 
+        webhook.delete(ctx.http(), Some("Stared a Message")).await?;
+
     } else {
         ctx.reply("There is no starboard channel set!\nUse `settings channels starboard <channel>`").await?;
     };
