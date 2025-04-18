@@ -2,15 +2,18 @@ mod commands;
 mod structs;
 mod utils;
 
-use std::str::FromStr;
+use std::sync::Arc;
 
 use bson::doc;
+use chrono::Utc;
 use mongodb::options::ClientOptions;
 use mongodb::{Client, Database};
 use poise::serenity_prelude::FullEvent;
 use poise::serenity_prelude::{self, GatewayIntents};
 use dotenv::dotenv;
-use serenity::all::{CreateAttachment, CreateWebhook, ExecuteWebhook, ReactionType, Token};
+use serenity::all::{ChannelId, Token, UserId};
+use structs::Reminder;
+use tokio::time::sleep;
 use utils::Valeriyya;
 
 type Error = Box<dyn std::error::Error + Send + Sync>;
@@ -43,6 +46,58 @@ async fn on_error(error: poise::FrameworkError<'_, Data, Error>) {
     }
 }
 
+async fn reminder_checker(ctx: Arc<serenity::prelude::Context>, database: Database) {
+    loop {
+        let now = Utc::now();
+
+        let guilds = ctx.cache.guilds();
+
+        for guild_id in guilds {
+            let guild_id_u64 = guild_id.get(); 
+
+            let db = Valeriyya::get_database(&database, guild_id_u64)
+                .await
+                .expect("Failed to fetch database");
+
+            let due_reminders: Vec<Reminder> = db.get_due_reminders(now);
+
+            for reminder in due_reminders {
+                let user_id = UserId::new(reminder.user);
+                let channel_id = ChannelId::new(reminder.channel);
+                let message = reminder.message.clone();
+
+                let ctx = Arc::clone(&ctx);
+                tokio::spawn(async move {
+                    if let Err(err) = send_reminder(ctx, channel_id, user_id, &message).await {
+                        eprintln!("Failed to send reminder: {}", err);
+                    }
+                });
+
+                let mut db = Valeriyya::get_database(&database, guild_id_u64)
+                    .await
+                    .expect("Failed to fetch database");
+                db = db.remove_reminder(reminder.id);
+                db.execute(&database).await;
+            }
+        }
+
+        sleep(tokio::time::Duration::from_secs(60)).await;
+    }
+}
+
+
+
+async fn send_reminder(
+    ctx: Arc<serenity::prelude::Context>,
+    channel_id: ChannelId,
+    user_id: UserId,
+    message: &str,
+) -> Result<(), serenity::Error> {
+    let content = format!("<@{}>, here's your reminder: {}", user_id, message);
+    channel_id.say(&ctx.http, content).await?;
+    Ok(())
+}
+
 async fn event_listeners(
     event: &FullEvent,
     framework: poise::FrameworkContext<'_, Data, Error>,
@@ -53,57 +108,14 @@ where
     #[allow(clippy::single_match)]
     match event {
         FullEvent::Ready { data_about_bot } => {
+            let ctx = framework.serenity_context.clone();
+            let database = framework.user_data().database();
+
+            tokio::spawn(async move {
+                reminder_checker(ctx.into(), database).await;
+            });
             tracing::info!("{} is connected!", data_about_bot.user.name);
         }
-        FullEvent::ReactionAdd { add_reaction, .. } => {
-            if let ReactionType::Unicode(ref emoji) = add_reaction.emoji {
-            if emoji == "⭐" {
-                tracing::info!("There was a star react on the message {}", add_reaction.message_id);
-
-                let channel_id = add_reaction.channel_id;
-
-                if let Some(guild_id) = add_reaction.guild_id {
-                    let guild_db = Valeriyya::get_database(&framework.serenity_context.data::<Data>().database(), guild_id.get()).await?;
-
-                    
-
-                    if guild_db.channels.starboard.is_some() {
-                        
-                        let webhook = channel_id
-                            .create_webhook(&framework.serenity_context.http, CreateWebhook::new("Starboard"))
-                            .await
-                            .unwrap();
-
-                        let message = add_reaction.message(&framework.serenity_context.http).await.unwrap();
-                        
-
-                        let mut files = Vec::new();
-
-                        for attachment in message.attachments.iter() {
-                            let url = attachment.url.clone();
-                            let filename = attachment.filename.clone();
-
-                            match CreateAttachment::url(&framework.serenity_context.http, url.as_str(), filename).await {
-                                Ok(file) => files.push(file),
-                                Err(err) => {
-                                    tracing::error!("Failed to create attachment: {:?}", err);
-                                }
-                            }
-                        }
-
-
-                        webhook.execute(&framework.serenity_context.http, false, 
-                            ExecuteWebhook::new()
-                                .content(message.content)
-                                .add_files(files)
-                            )
-                            .await.unwrap();
-                            
-                    };
-                }
-            }
-            }
-        },
         _ => {}
     }
 
@@ -155,6 +167,7 @@ async fn init() -> Result<(), Error> {
             commands::moderation::reason(),
             commands::settings::settings(),
             commands::application::star(),
+            commands::info::reminder(),
         ],
         prefix_options: poise::PrefixFrameworkOptions {
             prefix: Some("!".into()),

@@ -1,3 +1,3 @@
 use crate::import;
 
-import![help, register];
+import![help, register, reminder];

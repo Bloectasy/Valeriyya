@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use bson::doc;
+use chrono::{DateTime, Utc};
 use mongodb::Database;
 use poise::{
     async_trait,
@@ -20,6 +21,16 @@ pub struct GuildDbChannels {
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
 pub struct GuildDbRoles {
     pub staff: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Default, Clone)]
+pub struct Reminder {
+    pub id: u32,
+    pub user: u64,
+    pub message: String,
+    pub datetime: DateTime<Utc>,
+    pub created_at: DateTime<Utc>,
+    pub channel: u64,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
@@ -60,6 +71,8 @@ pub struct GuildDb {
     pub history: Vec<History>,
     pub channels: GuildDbChannels,
     pub roles: GuildDbRoles,
+    pub reminders: Vec<Reminder>,
+    pub reminder_count: u32,
 }
 
 impl GuildDb {
@@ -103,6 +116,18 @@ impl GuildDb {
         let cases_number = self.cases_number + 1;
         self = self.set_cases_count(cases_number);
         self.cases.push(case);
+        self
+    }
+
+    #[inline(always)]
+    pub fn add_reminder(mut self, reminder: Reminder) -> Self {
+        self.reminders.push(reminder);
+        self
+    }
+
+    #[inline(always)]
+    pub fn remove_reminder(mut self, id: u32) -> Self {
+        self.reminders.retain(|reminder| reminder.id != id);
         self
     }
 
@@ -163,6 +188,29 @@ impl GuildDb {
         };
 
         self
+    }
+
+    #[inline(always)]
+    pub fn get_reminders_for_user(&self, user_id: u64) -> Vec<Reminder> {
+        self.reminders
+            .iter()
+            .filter(|reminder| reminder.user == user_id) 
+            .cloned() 
+            .collect()
+    }
+
+    #[inline(always)]
+    pub fn get_reminder_by_id(&self, id: u32) -> Option<Reminder> {
+        self.reminders.iter().find(|reminder| reminder.id == id).cloned()
+    }
+
+    #[inline(always)]
+    pub fn get_due_reminders(&self, now: chrono::DateTime<Utc>) -> Vec<Reminder> {
+        self.reminders
+            .iter()
+            .filter(|reminder| reminder.datetime <= now) 
+            .cloned() 
+            .collect() 
     }
 
     pub async fn execute(self, database: &Database) -> Self {
