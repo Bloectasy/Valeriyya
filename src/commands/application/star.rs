@@ -1,7 +1,6 @@
 use crate::{utils::Valeriyya, Context, Error};
 
 use poise::serenity_prelude as serenity;
-use ::serenity::all::CreateAttachment;
 
 #[doc = "Star the message and send it to the starboard channel!"]
 #[poise::command(context_menu_command = "Star", category = "Application|Message")]
@@ -13,12 +12,16 @@ pub async fn star(
     let guild_id = ctx.guild_id().unwrap().get();
     let guild_db = Valeriyya::get_database(database, guild_id).await?;
 
-    let channel_id = ctx.channel_id();
-    if guild_db.channels.starboard.is_some() {
-        let webhook = channel_id
-            .create_webhook(
+    let starboard_channel = guild_db.channels.starboard;
+    if let Some(starboard_channel) = starboard_channel {
+        let webhook = serenity::ChannelId::new(starboard_channel.parse::<u64>().expect("Can't parse the starboard_channel id"))
+        .to_channel(ctx.http(), Some(serenity::GuildId::new(guild_id)))
+        .await?
+        .guild()
+        .ok_or_else(|| Error::from("Expected a guild channel"))?
+        .create_webhook(
                 ctx.http(),
-                serenity::CreateWebhook::new(msg.author.display_name()).avatar(&CreateAttachment::url(ctx.http(), msg.author.avatar_url().unwrap(), "profile").await.unwrap()),
+                serenity::CreateWebhook::new(msg.author.display_name()).avatar(&serenity::CreateAttachment::url(ctx.http(), msg.author.avatar_url().unwrap(), "profile").await.unwrap()),
             )
             .await
             .unwrap();
