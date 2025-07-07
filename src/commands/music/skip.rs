@@ -1,4 +1,4 @@
-use crate::{Context, Error, utils::Valeriyya};
+use crate::{utils::Valeriyya, Context, Error};
 
 #[doc = "Skips the currently playing song."]
 #[poise::command(prefix_command, slash_command, category = "Music", aliases("s"))]
@@ -15,7 +15,8 @@ pub async fn skip(ctx: Context<'_>) -> Result<(), Error> {
     let _connect_to = match channel_id {
         Some(channel) => channel,
         None => {
-            ctx.send(Valeriyya::reply("You are not in a voice channel.").ephemeral(true)).await?;
+            ctx.send(Valeriyya::reply("You are not in a voice channel.").ephemeral(true))
+                .await?;
             return Ok(());
         }
     };
@@ -26,11 +27,15 @@ pub async fn skip(ctx: Context<'_>) -> Result<(), Error> {
         match queue.is_empty() {
             false => {
                 let _ = queue.skip();
-                ctx.send(Valeriyya::reply("The song has been skipped successfully.").ephemeral(true)).await?;
+                ctx.send(
+                    Valeriyya::reply("The song has been skipped successfully.").ephemeral(true),
+                )
+                .await?;
             }
             true => {
                 drop(handler);
-                ctx.send(Valeriyya::reply("There is no songs in the queue!").ephemeral(true)).await?;
+                ctx.send(Valeriyya::reply("There is no songs in the queue!").ephemeral(true))
+                    .await?;
             }
         };
     };

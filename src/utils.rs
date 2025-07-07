@@ -1,3 +1,6 @@
+use std::sync::Arc;
+
+use chrono::Utc;
 use mongodb::Database;
 use poise::{
     serenity_prelude::all::{
@@ -6,15 +9,16 @@ use poise::{
     },
     CreateReply,
 };
-// use reqwest::header::{AUTHORIZATION, CONTENT_TYPE, ACCEPT};
 use iso8601_duration::Duration as iso_duration;
+use serenity::all::{ChannelId, UserId};
+use tokio::time::sleep;
 
 use crate::{
     structs::{
-        GuildDb, ResponsePlaylistApi, ResponseSearchVideoApi, ResponseVideoApi, SearchVideoItem,
-        Video,
+        GuildDb, Reminder, ResponsePlaylistApi, ResponseSearchVideoApi, ResponseVideoApi,
+        SearchVideoItem, Video,
     },
-    Context, Error,
+    Context, Data, Error,
 };
 
 #[macro_export]
@@ -237,15 +241,19 @@ pub async fn member_managable<'a>(ctx: Context<'_>, member: &Member) -> bool {
             Some(g) => g,
             None => return false,
         };
-    
-        if member.user.id == guild.owner_id || member.user.id == bot_id { return false; }
-        if bot_id == guild.owner_id { return true; }
+
+        if member.user.id == guild.owner_id || member.user.id == bot_id {
+            return false;
+        }
+        if bot_id == guild.owner_id {
+            return true;
+        }
     }
 
     let guild_id = ctx.guild_id().unwrap();
-    
+
     let bot_member = match guild_id.member(ctx.serenity_context(), bot_id).await {
-            Ok(m) => m,
+        Ok(m) => m,
         Err(_) => return false,
     };
 
@@ -285,7 +293,71 @@ pub fn compare_role_position(ctx: Context<'_>, role1: RoleId, role2: RoleId) -> 
     }
 }
 
-       
+pub async fn reminder_checker(ctx: Arc<serenity::prelude::Context>, database: Database) {
+    loop {
+        let now = Utc::now();
+
+        let guilds = ctx.cache.guilds();
+
+        for guild_id in guilds {
+            let guild_id_u64 = guild_id.get();
+
+            let db = Valeriyya::get_database(&database, guild_id_u64)
+                .await
+                .expect("Failed to fetch database");
+
+            let due_reminders: Vec<Reminder> = db.get_due_reminders(now);
+
+            for reminder in due_reminders {
+                let user_id = UserId::new(reminder.user);
+                let channel_id = ChannelId::new(reminder.channel);
+                let message = reminder.message.clone();
+
+                let ctx = Arc::clone(&ctx);
+                tokio::spawn(async move {
+                    if let Err(err) = send_reminder(ctx, channel_id, user_id, &message).await {
+                        eprintln!("Failed to send reminder: {}", err);
+                    }
+                });
+
+                let mut db = Valeriyya::get_database(&database, guild_id_u64)
+                    .await
+                    .expect("Failed to fetch database");
+                db = db.remove_reminder(reminder.id);
+                db.execute(&database).await;
+            }
+        }
+
+        sleep(tokio::time::Duration::from_secs(60)).await;
+    }
+}
+
+pub async fn send_reminder(
+    ctx: Arc<serenity::prelude::Context>,
+    channel_id: ChannelId,
+    user_id: UserId,
+    message: &str,
+) -> Result<(), serenity::Error> {
+    let content = format!("<@{}>, here's your reminder: {}", user_id, message);
+    let _ = channel_id
+        .widen()
+        .send_message(&ctx.http, Valeriyya::msg_reply().content(content))
+        .await;
+    Ok(())
+}
+
+pub async fn on_error(error: poise::FrameworkError<'_, Data, Error>) {
+    match error {
+        poise::FrameworkError::Command { error, ctx, .. } => {
+            tracing::error!("Error in command `{}`: {:?}", ctx.command().name, error,);
+        }
+        error => {
+            if let Err(e) = poise::builtins::on_error(error).await {
+                tracing::error!("Error while handling error: {}", e)
+            }
+        }
+    }
+}
 
 pub const PURPLE_COLOR: Color = Color::from_rgb(82, 66, 100);
 
@@ -332,7 +404,10 @@ impl Valeriyya {
         string_to_sec(raw_text)
     }
 
-    pub async fn get_database(db: &Database, guild_id: u64) -> Result<GuildDb, mongodb::error::Error> {
+    pub async fn get_database(
+        db: &Database,
+        guild_id: u64,
+    ) -> Result<GuildDb, mongodb::error::Error> {
         GuildDb::new(db, guild_id.to_string()).await
     }
 

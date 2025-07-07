@@ -4,17 +4,19 @@ use humantime::parse_duration;
 use crate::{structs::Reminder, utils::Valeriyya, Context, Error};
 
 #[doc = "Reminders."]
-#[poise::command(slash_command, prefix_command, category = "Info", subcommands("add", "remove", "list"), track_edits)]
+#[poise::command(
+    slash_command,
+    prefix_command,
+    category = "Info",
+    subcommands("add", "remove", "list"),
+    track_edits
+)]
 pub async fn reminder(_ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
 
 #[poise::command(slash_command, category = "Info", prefix_command, track_edits)]
-pub async fn add(
-    ctx: Context<'_>,
-    message: String,
-    time: String,
-) -> Result<(), Error> {
+pub async fn add(ctx: Context<'_>, message: String, time: String) -> Result<(), Error> {
     let database = &ctx.data().database();
     let guild_id = ctx.guild_id().unwrap().get();
 
@@ -96,4 +98,3 @@ pub async fn list(ctx: Context<'_>) -> Result<(), Error> {
     ctx.reply(response).await?;
     Ok(())
 }
-

@@ -1,7 +1,4 @@
-use crate::{
-    utils::Valeriyya,
-    Context, Error,
-};
+use crate::{utils::Valeriyya, Context, Error};
 
 #[doc = "Puts the current song on repeat."]
 #[poise::command(
@@ -13,7 +10,9 @@ use crate::{
 )]
 pub async fn loop_music(
     ctx: Context<'_>,
-    #[description = "Change the loop mode."] #[rename="loop"] loop_bool: bool
+    #[description = "Change the loop mode."]
+    #[rename = "loop"]
+    loop_bool: bool,
 ) -> Result<(), Error> {
     let guild_id = ctx.guild_id().unwrap();
 
@@ -25,17 +24,26 @@ pub async fn loop_music(
             }
             handler.queue().current().unwrap().enable_loop()?;
 
-            ctx.send(Valeriyya::reply_default().embed(
-                Valeriyya::embed()
-                    .description(format!("Loop {}", if loop_bool { "enabled" } else { "disabled" }))
-                    .title("Loop information")
-            )).await?;
+            ctx.send(
+                Valeriyya::reply_default().embed(
+                    Valeriyya::embed()
+                        .description(format!(
+                            "Loop {}",
+                            if loop_bool { "enabled" } else { "disabled" }
+                        ))
+                        .title("Loop information"),
+                ),
+            )
+            .await?;
         } else {
-            ctx.send(Valeriyya::reply_default().embed(
-                Valeriyya::embed()
-                    .description("There is no songs in the queue.")
-                    .title("Loop information")
-            )).await?;
+            ctx.send(
+                Valeriyya::reply_default().embed(
+                    Valeriyya::embed()
+                        .description("There is no songs in the queue.")
+                        .title("Loop information"),
+                ),
+            )
+            .await?;
         }
     };
 

@@ -3,7 +3,7 @@ use crate::{
     utils::{member_managable, Valeriyya},
     Context, Error,
 };
-use poise::serenity_prelude::{ChannelId, Timestamp, UserId, Member};
+use poise::serenity_prelude::{ChannelId, Member, Timestamp, UserId};
 
 #[doc = "Bans a member from the guild."]
 #[poise::command(
@@ -27,19 +27,22 @@ pub async fn ban(
     let database = &ctx.data().database();
     let guild = ctx.guild_id().unwrap();
     let guild_id = guild.get();
-    let icon_url = ctx
-        .guild()
-        .unwrap()
-        .icon_url()
-        .unwrap_or(String::from(""));
+    let icon_url = ctx.guild().unwrap().icon_url().unwrap_or(String::from(""));
 
     let mut guild_db = Valeriyya::get_database(database, guild_id).await?;
     let case_number = guild_db.cases_number + 1;
-    let reason_default = reason.unwrap_or(format!("Use /reason {} <...reason> to set a reason for this case.", case_number));
+    let reason_default = reason.unwrap_or(format!(
+        "Use /reason {} <...reason> to set a reason for this case.",
+        case_number
+    ));
 
     if let Some(member) = &mem {
         if !member_managable(ctx, member).await {
-            ctx.send(Valeriyya::reply("The member can't be managed so you can't ban them!").ephemeral(true)).await?;
+            ctx.send(
+                Valeriyya::reply("The member can't be managed so you can't ban them!")
+                    .ephemeral(true),
+            )
+            .await?;
             return Ok(());
         }
         if guild
@@ -48,12 +51,12 @@ pub async fn ban(
             .iter()
             .any(|ban| ban.user.id == member.user.id)
         {
-
-            ctx.send(Valeriyya::reply("This member is already banned from this guild.").ephemeral(true)).await?;
-        }
-        member
-            .ban(ctx.http(), 7, Some(&reason_default))
+            ctx.send(
+                Valeriyya::reply("This member is already banned from this guild.").ephemeral(true),
+            )
             .await?;
+        }
+        member.ban(ctx.http(), 7, Some(&reason_default)).await?;
 
         let message = if guild_db.channels.logs.as_ref().is_some() {
             let sent_msg = ChannelId::new(
@@ -65,22 +68,31 @@ pub async fn ban(
                     .parse::<u64>()
                     .unwrap(),
             )
-            .send_message(ctx.http(), Valeriyya::msg_reply().add_embed(
-                Valeriyya::embed()
-                    .author(Valeriyya::reply_author(format!(
-                        "{} ({})",
-                        ctx.author().tag(),
-                        ctx.author().id
-                    )).icon_url(ctx.author().face()))
-                    .thumbnail(&icon_url)
-                    .description(format!(
-                        "Member: `{}`\nAction: `{:?}`\nReason: `{}`",
-                        member.user.tag(),
-                        ActionTypes::Ban,
-                        reason_default
-                    ))
-                    .footer(Valeriyya::reply_footer(format!("Case {}", case_number)))
-            )).await.expect("Guild log channel doesn't exist");
+            .widen()
+            .send_message(
+                ctx.http(),
+                Valeriyya::msg_reply().add_embed(
+                    Valeriyya::embed()
+                        .author(
+                            Valeriyya::reply_author(format!(
+                                "{} ({})",
+                                ctx.author().tag(),
+                                ctx.author().id
+                            ))
+                            .icon_url(ctx.author().face()),
+                        )
+                        .thumbnail(&icon_url)
+                        .description(format!(
+                            "Member: `{}`\nAction: `{:?}`\nReason: `{}`",
+                            member.user.tag(),
+                            ActionTypes::Ban,
+                            reason_default
+                        ))
+                        .footer(Valeriyya::reply_footer(format!("Case {}", case_number))),
+                ),
+            )
+            .await
+            .expect("Guild log channel doesn't exist");
 
             Some(sent_msg.id.to_string())
         } else {
@@ -114,7 +126,10 @@ pub async fn ban(
             .iter()
             .any(|ban| ban.user.id == user_id)
         {
-            ctx.send(Valeriyya::reply("This member is already banned from this guild.").ephemeral(true)).await?;
+            ctx.send(
+                Valeriyya::reply("This member is already banned from this guild.").ephemeral(true),
+            )
+            .await?;
         }
         guild
             .ban(ctx.http(), user_id, 7, Some(&reason_default))
@@ -130,22 +145,31 @@ pub async fn ban(
                     .parse::<u64>()
                     .unwrap(),
             )
-            .send_message(ctx.http(), Valeriyya::msg_reply().add_embed(
-                Valeriyya::embed()
-                    .author(Valeriyya::reply_author(format!(
-                        "{} ({})",
-                        ctx.author().tag(),
-                        ctx.author().id
-                    )).icon_url(ctx.author().face()))
-                    .thumbnail(&icon_url)
-                    .description(format!(
-                        "Member: `{}`\nAction: `{:?}`\nReason: `{}`",
-                        m_id,
-                        ActionTypes::Ban,
-                        reason_default
-                    ))
-                    .footer(Valeriyya::reply_footer(format!("Case {}", case_number)))
-            )).await.expect("Guild log channel doesn't exist");
+            .widen()
+            .send_message(
+                ctx.http(),
+                Valeriyya::msg_reply().add_embed(
+                    Valeriyya::embed()
+                        .author(
+                            Valeriyya::reply_author(format!(
+                                "{} ({})",
+                                ctx.author().tag(),
+                                ctx.author().id
+                            ))
+                            .icon_url(ctx.author().face()),
+                        )
+                        .thumbnail(&icon_url)
+                        .description(format!(
+                            "Member: `{}`\nAction: `{:?}`\nReason: `{}`",
+                            m_id,
+                            ActionTypes::Ban,
+                            reason_default
+                        ))
+                        .footer(Valeriyya::reply_footer(format!("Case {}", case_number))),
+                ),
+            )
+            .await
+            .expect("Guild log channel doesn't exist");
 
             Some(sent_msg.id.to_string())
         } else {

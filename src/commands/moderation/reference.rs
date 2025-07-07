@@ -30,20 +30,30 @@ pub async fn reference(
 
     match (case_1, case_2) {
         (None, None) => {
-            ctx.send(Valeriyya::reply("Cases with these IDs don't exist").ephemeral(true)).await?;
+            ctx.send(Valeriyya::reply("Cases with these IDs don't exist").ephemeral(true))
+                .await?;
             return Ok(());
         }
         (Some(_), None) => {
-            ctx.send(Valeriyya::reply(format!("Case with the ID: {} doesn't exist", reference)).ephemeral(true)).await?;
+            ctx.send(
+                Valeriyya::reply(format!("Case with the ID: {} doesn't exist", reference))
+                    .ephemeral(true),
+            )
+            .await?;
             return Ok(());
         }
         (None, Some(_)) => {
-            ctx.send(Valeriyya::reply(format!("Case with the ID: {} doesn't exist", case)).ephemeral(true)).await?;
+            ctx.send(
+                Valeriyya::reply(format!("Case with the ID: {} doesn't exist", case))
+                    .ephemeral(true),
+            )
+            .await?;
             return Ok(());
         }
         (Some(ref1), Some(ref2)) => {
             if ref1.id == ref2.id {
-                ctx.send(Valeriyya::reply("You can't reference the same case").ephemeral(true)).await?;
+                ctx.send(Valeriyya::reply("You can't reference the same case").ephemeral(true))
+                    .await?;
                 return Ok(());
             }
         }
@@ -64,6 +74,7 @@ pub async fn reference(
         let channel = ChannelId::new(logs.parse::<u64>().unwrap());
         if case_found.message.is_some() {
             let mut log_channel_msg = channel
+                .widen()
                 .message(
                     ctx.serenity_context(),
                     MessageId::new(
@@ -90,35 +101,41 @@ pub async fn reference(
                 .await?
                 .tag();
 
-            let icon_url = ctx
-                .guild()
-                .unwrap()
-                .icon_url()
-                .unwrap_or(String::from(""));
+            let icon_url = ctx.guild().unwrap().icon_url().unwrap_or(String::from(""));
 
             let mut embed = Valeriyya::embed()
-                .timestamp(Timestamp::from(&Timestamp::from_unix_timestamp(case_found.date).unwrap()))
-                .author(Valeriyya::reply_author(format!("{} ({})", staff_name, staff_id)).icon_url(staff_face))
+                .timestamp(Timestamp::from(
+                    &Timestamp::from_unix_timestamp(case_found.date).unwrap(),
+                ))
+                .author(
+                    Valeriyya::reply_author(format!("{} ({})", staff_name, staff_id))
+                        .icon_url(staff_face),
+                )
                 .thumbnail(icon_url)
                 .footer(Valeriyya::reply_footer(format!("Case {}", case_found.id)));
-            
-                let mut description = format!(
-                    "Member: `{}`\nAction: `{:?}`\nReason: `{}`\nReference: `{}`",
-                    target_user, case_found.action, case_found.reason, reference
-                );
-                
-                if case_found.action == ActionTypes::Mute {
-                    description += &format!("\nExpiration: {}", Valeriyya::time_format(case_found.expiration.unwrap().to_string()));
-                }
-                
-                embed = embed.description(description);
-            
 
-            log_channel_msg.edit(ctx.serenity_context(), Valeriyya::msg_edit().embed(embed)).await?;
+            let mut description = format!(
+                "Member: `{}`\nAction: `{:?}`\nReason: `{}`\nReference: `{}`",
+                target_user, case_found.action, case_found.reason, reference
+            );
+
+            if case_found.action == ActionTypes::Mute {
+                description += &format!(
+                    "\nExpiration: {}",
+                    Valeriyya::time_format(case_found.expiration.unwrap().to_string())
+                );
+            }
+
+            embed = embed.description(description);
+
+            log_channel_msg
+                .edit(ctx.serenity_context(), Valeriyya::msg_edit().embed(embed))
+                .await?;
         };
     }
 
-    ctx.send(Valeriyya::reply(format!("Updated case with the id: {case}")).ephemeral(true)).await?;
+    ctx.send(Valeriyya::reply(format!("Updated case with the id: {case}")).ephemeral(true))
+        .await?;
     db.execute(database).await;
     Ok(())
 }

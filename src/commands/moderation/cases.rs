@@ -1,8 +1,8 @@
-use poise::serenity_prelude::{Timestamp, UserId, CreateEmbed, Member};
+use poise::serenity_prelude::{CreateEmbed, Member, Timestamp, UserId};
 
 use crate::{
     structs::{ActionTypes, Case},
-    utils::{get_guild_member,Valeriyya},
+    utils::{get_guild_member, Valeriyya},
     Context, Error,
 };
 
@@ -38,19 +38,29 @@ pub async fn cases(
         let case = db.cases.iter().find(|c| c.id == id);
 
         if case.is_none() {
-            ctx.send(Valeriyya::reply(format!("Can't find a case with the id: {}", id)).ephemeral(true)).await?;
+            ctx.send(
+                Valeriyya::reply(format!("Can't find a case with the id: {}", id)).ephemeral(true),
+            )
+            .await?;
             return Ok(());
         }
-        
-        let case = case.unwrap();
-        let target_user = UserId::new(case.target_id.parse::<u64>().unwrap()).to_user(ctx.serenity_context()).await?.tag();
 
-        ctx.send(Valeriyya::reply_default().embed(create_embed(ctx, staff, case, target_user))).await?;
+        let case = case.unwrap();
+        let target_user = UserId::new(case.target_id.parse::<u64>().unwrap())
+            .to_user(ctx.serenity_context())
+            .await?
+            .tag();
+
+        ctx.send(Valeriyya::reply_default().embed(create_embed(ctx, staff, case, target_user)))
+            .await?;
     } else if let OptionChoices::Delete = option {
         let case = db.cases.iter().find(|c| c.id == id);
 
         if case.is_none() {
-            ctx.send(Valeriyya::reply(format!("Can't find a case with the id: {}", id)).ephemeral(true)).await?;
+            ctx.send(
+                Valeriyya::reply(format!("Can't find a case with the id: {}", id)).ephemeral(true),
+            )
+            .await?;
             return Ok(());
         }
 
@@ -64,42 +74,64 @@ pub async fn cases(
 
         db = db.delete_cases(index);
 
-        ctx.send(Valeriyya::reply_default().embed(
-            Valeriyya::embed()
-                .author(Valeriyya::reply_author(format!("{} ({})", staff.user.tag(), staff.user.id)).icon_url(staff.user.face()))
-        ))
+        ctx.send(
+            Valeriyya::reply_default().embed(
+                Valeriyya::embed().author(
+                    Valeriyya::reply_author(format!("{} ({})", staff.user.tag(), staff.user.id))
+                        .icon_url(staff.user.face()),
+                ),
+            ),
+        )
         .await?;
     }
     db.execute(database).await;
     Ok(())
 }
 
-fn create_embed<'a>(ctx: Context<'_>, staff: Member, case: &Case, target_user: String) -> CreateEmbed<'a> {
+fn create_embed<'a>(
+    ctx: Context<'_>,
+    staff: Member,
+    case: &Case,
+    target_user: String,
+) -> CreateEmbed<'a> {
     let expiration_text = case.expiration.map(|exp| format!("<t:{}:R>", exp));
 
     let description = match (&case.action, &expiration_text, case.reference) {
         (ActionTypes::Mute, Some(exp), Some(reference)) => {
-            format!("Member: `{}`\nAction: `{:?}`\nReason: `{}`\nExpiration: {}\nReference: `{}`",
-                target_user, case.action, case.reason, exp, reference)
-        },
+            format!(
+                "Member: `{}`\nAction: `{:?}`\nReason: `{}`\nExpiration: {}\nReference: `{}`",
+                target_user, case.action, case.reason, exp, reference
+            )
+        }
         (ActionTypes::Mute, Some(exp), None) => {
-            format!("Member: `{}`\nAction: `{:?}`\nReason: `{}`\nExpiration: {}",
-                target_user, case.action, case.reason, exp)
-        },
+            format!(
+                "Member: `{}`\nAction: `{:?}`\nReason: `{}`\nExpiration: {}",
+                target_user, case.action, case.reason, exp
+            )
+        }
         (_, _, Some(reference)) => {
-            format!("Member: `{}`\nAction: `{:?}`\nReason: `{}`\nReference: `{}`",
-                target_user, case.action, case.reason, reference)
-        },
+            format!(
+                "Member: `{}`\nAction: `{:?}`\nReason: `{}`\nReference: `{}`",
+                target_user, case.action, case.reason, reference
+            )
+        }
         _ => {
-            format!("Member: `{}`\nAction: `{:?}`\nReason: `{}`",
-                target_user, case.action, case.reason)
-        },
+            format!(
+                "Member: `{}`\nAction: `{:?}`\nReason: `{}`",
+                target_user, case.action, case.reason
+            )
+        }
     };
 
     Valeriyya::embed()
-        .author(Valeriyya::reply_author(format!("{} ({})", staff.user.tag(), staff.user.id)).icon_url(staff.user.face()))
+        .author(
+            Valeriyya::reply_author(format!("{} ({})", staff.user.tag(), staff.user.id))
+                .icon_url(staff.user.face()),
+        )
         .thumbnail(ctx.guild().unwrap().icon_url().unwrap())
-        .timestamp(Timestamp::from(&Timestamp::from_unix_timestamp(case.date).unwrap()))
+        .timestamp(Timestamp::from(
+            &Timestamp::from_unix_timestamp(case.date).unwrap(),
+        ))
         .footer(Valeriyya::reply_footer(format!("Case {}", case.id)))
         .description(description)
 }

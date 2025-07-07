@@ -13,17 +13,23 @@ pub async fn leave(ctx: Context<'_>) -> Result<(), Error> {
     if ctx.data().songbird.get(guild_id).is_some() {
         let _ = ctx.data().songbird.remove(guild_id).await;
 
-        ctx.send(Valeriyya::reply_default().embed(
-            Valeriyya::embed()
-                .description("Leaving the current channel.")
-                .title("Left the channel")
-        )).await?;
+        ctx.send(
+            Valeriyya::reply_default().embed(
+                Valeriyya::embed()
+                    .description("Leaving the current channel.")
+                    .title("Left the channel"),
+            ),
+        )
+        .await?;
     } else {
-        ctx.send(Valeriyya::reply_default().embed(
-            Valeriyya::embed()
-                .description("I need to be in a voice channel to be able to leave.")
-                .title("Error")
-        )).await?;
+        ctx.send(
+            Valeriyya::reply_default().embed(
+                Valeriyya::embed()
+                    .description("I need to be in a voice channel to be able to leave.")
+                    .title("Error"),
+            ),
+        )
+        .await?;
     }
 
     Ok(())

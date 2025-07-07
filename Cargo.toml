@@ -32,17 +32,15 @@ path = "./spotify"
 git = "https://github.com/serenity-rs/serenity"
 default-features = false
 features = ["builder", "cache", "gateway", "http", "model", "utils", "rustls_backend", "chrono", "voice", "framework"]
-# rev = "5536d0400f14642867ed07ab0865315754a86a1b"
 branch = "next"
 
 # Poise Serenity-Next Branch
 [dependencies.poise]
 git = "https://github.com/serenity-rs/poise"
-# rev = "70c7b26613a209e9a626772bdd1dbe8e1bd74bce"
 branch = "serenity-next"
 
 [dependencies.mongodb]
-version = "3.2.3"
+version = "3.2.4"
 default-features = false
 features = ["openssl-tls", "compat-3-0-0", "dns-resolver"]
 
@@ -50,16 +48,8 @@ features = ["openssl-tls", "compat-3-0-0", "dns-resolver"]
 [dependencies.songbird]
 git = "https://github.com/serenity-rs/songbird"
 features = ["builtin-queue"]
-# rev = "ea7cfd97dc2363870248505537d2aa94107fb23b"
 branch = "serenity-next"
 
 [dependencies.symphonia]
 version = "0.5.2"
 features = ["aac", "mp3", "isomp4", "alac"]
-
-[patch.crates-io]
-# proc-macro2 = { git = "https://github.com/dtolnay/proc-macro2", rev = "45ef770a5189ceca3adae9d4d6117a782da30a2a" }
-# log = { git = "https://github.com/rust-lang/log", rev = "35ee9442132c4aa49d22e8f00e2ba79fe149d920" }
-# # Patching Serenity
-# [patch."https://github.com/serenity-rs/serenity"]
-# serenity = { version = "0.11.5" }

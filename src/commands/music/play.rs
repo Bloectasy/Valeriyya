@@ -21,7 +21,10 @@ pub async fn play(
     #[rest]
     url: String,
 ) -> Result<(), Error> {
-    let video_bool = crate::regex!(r"(?:(?:PL|LL|EC|UU|FL|RD|UL|TL|PU|OLAK5uy_)[0-9A-Za-z-_]{10,}|RDMM)").find(&url).is_none();
+    let video_bool =
+        crate::regex!(r"(?:(?:PL|LL|EC|UU|FL|RD|UL|TL|PU|OLAK5uy_)[0-9A-Za-z-_]{10,}|RDMM)")
+            .find(&url)
+            .is_none();
     let request_client = reqwest::Client::new();
     let guild_id = ctx.guild_id().unwrap();
 
@@ -35,7 +38,8 @@ pub async fn play(
     let connect_to = match channel_id {
         Some(channel) => channel,
         None => {
-            ctx.send(Valeriyya::reply("You are not in a voice channel..").ephemeral(true)).await?;
+            ctx.send(Valeriyya::reply("You are not in a voice channel..").ephemeral(true))
+                .await?;
             return Ok(());
         }
     };
@@ -49,7 +53,7 @@ pub async fn play(
         let metedata_url = url.clone();
         let metadata: Vec<Video> = match video_bool {
             true => Valeriyya::get_video_metadata(ctx, metedata_url).await,
-            false => Valeriyya::get_playlist_metadata(ctx, metedata_url).await
+            false => Valeriyya::get_playlist_metadata(ctx, metedata_url).await,
         };
 
         let source = match video_bool {
@@ -72,7 +76,7 @@ pub async fn play(
             let _ = queue.add_event(
                 Event::Track(TrackEvent::End),
                 SongEndNotifier {
-                    chan_id: ctx.channel_id(),
+                    channel_id: ctx.channel_id().expect_channel(),
                     http: ctx.serenity_context().http.clone(),
                     metadata: metadata[i].clone(),
                 },
@@ -82,7 +86,7 @@ pub async fn play(
                 let _ = queue.add_event(
                     Event::Track(TrackEvent::Play),
                     SongPlayNotifier {
-                        chan_id: ctx.channel_id(),
+                        channel_id: ctx.channel_id().expect_channel(),
                         http: ctx.serenity_context().http.clone(),
                         metadata: metadata[i].clone(),
                     },
@@ -113,22 +117,24 @@ pub async fn play(
                 } else {
                     "Playing"
                 }
-            },
-            false => {
-                "Playing"
             }
+            false => "Playing",
         };
 
-        msg.edit(ctx, Valeriyya::reply("").embed(
-            Valeriyya::embed()
-                .description(format!(
-                    "{} [{}]({})",
-                    information_title,
-                    metadata[0].title,
-                    format_args!("https://youtu.be/{}", metadata[0].id)
-                ))
-                .title("Song information")
-        )).await?;
+        msg.edit(
+            ctx,
+            Valeriyya::reply("").embed(
+                Valeriyya::embed()
+                    .description(format!(
+                        "{} [{}]({})",
+                        information_title,
+                        metadata[0].title,
+                        format_args!("https://youtu.be/{}", metadata[0].id)
+                    ))
+                    .title("Song information"),
+            ),
+        )
+        .await?;
 
         drop(handler);
     };

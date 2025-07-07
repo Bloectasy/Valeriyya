@@ -5,12 +5,35 @@ use chrono::{DateTime, Utc};
 use mongodb::Database;
 use poise::{
     async_trait,
-    serenity_prelude::{ChannelId, Http},
+    serenity_prelude::{ChannelId, FullEvent, Http},
 };
 use serde::{Deserialize, Serialize};
-use songbird::{Event, EventContext, EventHandler};
+use serenity::{all::EventHandler, prelude::Context};
+use songbird::{Event, EventContext, EventHandler as SongbirdEventHandler};
 
-use crate::utils::Valeriyya;
+use crate::utils::{reminder_checker, Valeriyya};
+
+pub struct ValeriyyaEventHandler {
+    pub database: Database,
+}
+
+#[async_trait]
+impl EventHandler for ValeriyyaEventHandler {
+    async fn dispatch(&self, ctx: &Context, event: &FullEvent) {
+        match event {
+            FullEvent::Ready { data_about_bot, .. } => {
+                let ctx = ctx.clone();
+                let database = self.database.clone();
+
+                tokio::spawn(async move {
+                    reminder_checker(ctx.into(), database).await;
+                });
+                tracing::info!("{} is connected!", data_about_bot.user.name);
+            }
+            _ => {}
+        }
+    }
+}
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
 pub struct GuildDbChannels {
@@ -76,14 +99,14 @@ pub struct GuildDb {
 }
 
 impl GuildDb {
-    pub async fn new(db: &Database, guild_id: impl Into<String>) -> Result<Self, mongodb::error::Error> {
+    pub async fn new(
+        db: &Database,
+        guild_id: impl Into<String>,
+    ) -> Result<Self, mongodb::error::Error> {
         let guild_id = guild_id.into();
         let collection = db.collection::<GuildDb>("guild");
 
-        if let Some(guilddb) = collection
-            .find_one(doc! { "gid": &guild_id })
-            .await?
-        {
+        if let Some(guilddb) = collection.find_one(doc! { "gid": &guild_id }).await? {
             return Ok(guilddb);
         }
 
@@ -96,12 +119,12 @@ impl GuildDb {
         {
             Ok(inserted_guild)
         } else {
-            Err(mongodb::error::Error::from(
-                mongodb::error::Error::from(std::io::Error::new(
+            Err(mongodb::error::Error::from(mongodb::error::Error::from(
+                std::io::Error::new(
                     std::io::ErrorKind::Other,
                     "Failed to retrieve inserted document",
-                )),
-            ))
+                ),
+            )))
         }
     }
 
@@ -194,23 +217,26 @@ impl GuildDb {
     pub fn get_reminders_for_user(&self, user_id: u64) -> Vec<Reminder> {
         self.reminders
             .iter()
-            .filter(|reminder| reminder.user == user_id) 
-            .cloned() 
+            .filter(|reminder| reminder.user == user_id)
+            .cloned()
             .collect()
     }
 
     #[inline(always)]
     pub fn get_reminder_by_id(&self, id: u32) -> Option<Reminder> {
-        self.reminders.iter().find(|reminder| reminder.id == id).cloned()
+        self.reminders
+            .iter()
+            .find(|reminder| reminder.id == id)
+            .cloned()
     }
 
     #[inline(always)]
     pub fn get_due_reminders(&self, now: chrono::DateTime<Utc>) -> Vec<Reminder> {
         self.reminders
             .iter()
-            .filter(|reminder| reminder.datetime <= now) 
-            .cloned() 
-            .collect() 
+            .filter(|reminder| reminder.datetime <= now)
+            .cloned()
+            .collect()
     }
 
     pub async fn execute(self, database: &Database) -> Self {
@@ -219,7 +245,7 @@ impl GuildDb {
             doc! { "gid": self.gid.clone() },
             doc! {
                 "$set": bson::to_document(&self).unwrap()
-            }
+            },
         )
         .await
         .unwrap()
@@ -239,13 +265,12 @@ impl GuildDbChannels {
         self.welcome = welcome;
         self
     }
-    
+
     #[inline(always)]
     pub fn set_starboard_channel(mut self, starboard: Option<String>) -> Self {
         self.starboard = starboard;
         self
     }
-
 }
 
 impl GuildDbRoles {
@@ -355,22 +380,23 @@ struct Album {
 }
 
 pub struct SongEndNotifier {
-    pub chan_id: ChannelId,
+    pub channel_id: ChannelId,
     pub http: Arc<Http>,
     pub metadata: Video,
 }
 
 pub struct SongPlayNotifier {
-    pub chan_id: ChannelId,
+    pub channel_id: ChannelId,
     pub http: Arc<Http>,
     pub metadata: Video,
 }
 
 #[async_trait]
-impl EventHandler for SongEndNotifier {
+impl SongbirdEventHandler for SongEndNotifier {
     async fn act(&self, _ctx: &EventContext<'_>) -> Option<Event> {
         let _ = self
-            .chan_id
+            .channel_id
+            .widen()
             .send_message(
                 &self.http,
                 Valeriyya::msg_reply().add_embed(
@@ -386,10 +412,11 @@ impl EventHandler for SongEndNotifier {
 }
 
 #[async_trait]
-impl EventHandler for SongPlayNotifier {
+impl SongbirdEventHandler for SongPlayNotifier {
     async fn act(&self, _ctx: &EventContext<'_>) -> Option<Event> {
         let _ = self
-            .chan_id
+            .channel_id
+            .widen()
             .send_message(
                 &self.http,
                 Valeriyya::msg_reply().add_embed(

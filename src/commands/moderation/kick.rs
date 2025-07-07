@@ -1,8 +1,8 @@
-use poise::serenity_prelude::{ChannelId, Timestamp, Member};
+use poise::serenity_prelude::{ChannelId, Member, Timestamp};
 
 use crate::{
     structs::{ActionTypes, Case},
-    utils::{member_managable,Valeriyya},
+    utils::{member_managable, Valeriyya},
     Context, Error,
 };
 
@@ -22,21 +22,27 @@ pub async fn kick(
     reason: Option<String>,
 ) -> Result<(), Error> {
     let database = &ctx.data().database();
-    let guild_id = ctx.guild_id().unwrap().get();
+    let guild = ctx.guild_id().unwrap();
+    let guild_id = guild.get();
 
     let mut guild_db = Valeriyya::get_database(database, guild_id).await?;
     let case_number = guild_db.cases_number + 1;
-    let reason_default = reason.unwrap_or_else(|| format!("Use /reason {} <...reason> to set a reason for this case.", case_number));
+    let reason_default = reason.unwrap_or_else(|| {
+        format!(
+            "Use /reason {} <...reason> to set a reason for this case.",
+            case_number
+        )
+    });
 
     if !member_managable(ctx, &member).await {
-        ctx.send(Valeriyya::reply("The member can't be managed so you can't kick them!").ephemeral(true)).await?;
+        ctx.send(
+            Valeriyya::reply("The member can't be managed so you can't kick them!").ephemeral(true),
+        )
+        .await?;
         return Ok(());
     }
 
-    
-    member
-        .kick(ctx.http(), Some(&reason_default))
-        .await?;
+    member.kick(ctx.http(), Some(&reason_default)).await?;
     let icon_url = ctx
         .guild()
         .unwrap()
@@ -44,14 +50,28 @@ pub async fn kick(
         .unwrap_or_else(|| String::from(""));
 
     let message = if guild_db.channels.logs.as_ref().is_some() {
-        let sent_msg = ChannelId::new(guild_db.channels.logs.as_ref().unwrap().parse::<u64>().unwrap())
-            .send_message(ctx.http(), Valeriyya::msg_reply().add_embed(
+        let sent_msg = ChannelId::new(
+            guild_db
+                .channels
+                .logs
+                .as_ref()
+                .unwrap()
+                .parse::<u64>()
+                .unwrap(),
+        )
+        .widen()
+        .send_message(
+            ctx.http(),
+            Valeriyya::msg_reply().add_embed(
                 Valeriyya::embed()
-                    .author(Valeriyya::reply_author(format!(
-                        "{} ({})",
-                        ctx.author().tag(),
-                        ctx.author().id
-                    )).icon_url(ctx.author().face()))
+                    .author(
+                        Valeriyya::reply_author(format!(
+                            "{} ({})",
+                            ctx.author().tag(),
+                            ctx.author().id
+                        ))
+                        .icon_url(ctx.author().face()),
+                    )
                     .thumbnail(&icon_url)
                     .description(format!(
                         "Member: `{}`\nAction: `{:?}`\nReason: `{}`",
@@ -59,8 +79,11 @@ pub async fn kick(
                         ActionTypes::Kick,
                         reason_default
                     ))
-                    .footer(Valeriyya::reply_footer(format!("Case {}", case_number)))
-            )).await.expect("Guild log channel doesn't exist");
+                    .footer(Valeriyya::reply_footer(format!("Case {}", case_number))),
+            ),
+        )
+        .await
+        .expect("Guild log channel doesn't exist");
 
         Some(sent_msg.id.to_string())
     } else {
@@ -80,7 +103,8 @@ pub async fn kick(
         reference: None,
     });
 
-    ctx.say(format!("{} has been kicked by {}!", member, ctx.author())).await?;
+    ctx.say(format!("{} has been kicked by {}!", member, ctx.author()))
+        .await?;
 
     guild_db.execute(database).await;
     Ok(())

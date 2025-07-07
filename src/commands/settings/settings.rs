@@ -1,5 +1,7 @@
 use crate::{
-    structs::{GuildDbChannels, GuildDbRoles}, utils::Valeriyya, Context, Error
+    structs::{GuildDbChannels, GuildDbRoles},
+    utils::Valeriyya,
+    Context, Error,
 };
 
 use poise::serenity_prelude::Mentionable;
@@ -15,7 +17,14 @@ pub enum ChannelTypeChoices {
 }
 
 #[doc = "Changes the settings in this guild."]
-#[poise::command(slash_command, category = "Settings", subcommands("channel", "role"), default_member_permissions="MANAGE_GUILD", prefix_command, track_edits)]
+#[poise::command(
+    slash_command,
+    category = "Settings",
+    subcommands("channel", "role"),
+    default_member_permissions = "MANAGE_GUILD",
+    prefix_command,
+    track_edits
+)]
 pub async fn settings(_ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
@@ -36,14 +45,32 @@ pub async fn channel(
     let mut db = Valeriyya::get_database(database, guild_id).await?;
 
     if let ChannelTypeChoices::Logs = type_option {
-        db = db.set_channels(GuildDbChannels::default().set_logs_channel(Some(channel.id.to_string())));
-        ctx.say(format!("The logs channel has been updated to {}.", channel.mention())).await?;
+        db = db.set_channels(
+            GuildDbChannels::default().set_logs_channel(Some(channel.id.to_string())),
+        );
+        ctx.say(format!(
+            "The logs channel has been updated to {}.",
+            channel.mention()
+        ))
+        .await?;
     } else if let ChannelTypeChoices::Welcome = type_option {
-        db = db.set_channels(GuildDbChannels::default().set_welcome_channel(Some(channel.id.to_string())));
-        ctx.say(format!("The welcome channel has been updated to {}.", channel.mention())).await?;
+        db = db.set_channels(
+            GuildDbChannels::default().set_welcome_channel(Some(channel.id.to_string())),
+        );
+        ctx.say(format!(
+            "The welcome channel has been updated to {}.",
+            channel.mention()
+        ))
+        .await?;
     } else if let ChannelTypeChoices::Starboard = type_option {
-        db = db.set_channels(GuildDbChannels::default().set_starboard_channel(Some(channel.id.to_string())));
-        ctx.say(format!("The starboard channel has been updated to {}.", channel.mention())).await?;
+        db = db.set_channels(
+            GuildDbChannels::default().set_starboard_channel(Some(channel.id.to_string())),
+        );
+        ctx.say(format!(
+            "The starboard channel has been updated to {}.",
+            channel.mention()
+        ))
+        .await?;
     }
 
     db.execute(database).await;
@@ -68,18 +95,20 @@ pub async fn role(
     #[description = "The role that will be used for the previous type."]
     role: poise::serenity_prelude::Role,
 ) -> Result<(), Error> {
-
     let database = &ctx.data().database();
     let guild_id = ctx.guild_id().unwrap().get();
 
     let mut db = Valeriyya::get_database(database, guild_id).await?;
     if let RoleTypeChoices::Staff = type_option {
         db = db.set_roles(GuildDbRoles::default().set_staff_role(Some(role.id.to_string())));
-        ctx.say(format!("The staff role has been updated to {}.", role.mention())).await?;
+        ctx.say(format!(
+            "The staff role has been updated to {}.",
+            role.mention()
+        ))
+        .await?;
     };
 
     db.execute(database).await;
 
     Ok(())
 }
-
