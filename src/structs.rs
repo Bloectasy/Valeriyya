@@ -223,14 +223,6 @@ impl GuildDb {
     }
 
     #[inline(always)]
-    pub fn get_reminder_by_id(&self, id: u32) -> Option<Reminder> {
-        self.reminders
-            .iter()
-            .find(|reminder| reminder.id == id)
-            .cloned()
-    }
-
-    #[inline(always)]
     pub fn get_due_reminders(&self, now: chrono::DateTime<Utc>) -> Vec<Reminder> {
         self.reminders
             .iter()
