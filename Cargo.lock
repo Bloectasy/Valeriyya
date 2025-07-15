@@ -114,6 +114,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "anyhow"
+version = "1.0.98"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e16d2d3311acee920a9eb8d33b8cbc1787ce4a264e85f964c2404b969bdcd487"
+
+[[package]]
 name = "arrayvec"
 version = "0.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3267,16 +3273,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "spotify_auth"
-version = "0.1.0"
-dependencies = [
- "reqwest 0.12.22",
- "serde",
- "serde_json",
- "tokio",
-]
-
-[[package]]
 name = "stable-vec"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3821,6 +3817,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "token_manager"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "reqwest 0.12.22",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "tokio"
 version = "1.46.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4270,6 +4277,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "urlencoding"
+version = "2.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "daf8dba3b7eb870caf1ddeed7bc9d2a049f3cfdfae7cb521b087cc33ae4c49da"
+
+[[package]]
 name = "utf-8"
 version = "0.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4312,12 +4325,13 @@ dependencies = [
  "serde_json",
  "serenity",
  "songbird",
- "spotify_auth",
  "symphonia",
+ "token_manager",
  "tokio",
  "tracing",
  "tracing-futures",
  "tracing-subscriber",
+ "urlencoding",
  "ytextract",
 ]
 
