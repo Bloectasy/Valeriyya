@@ -2,15 +2,18 @@ mod commands;
 mod structs;
 mod utils;
 
-use bson::doc;
+use std::str::FromStr;
+use std::sync::Arc;
+
+use ::token_manager::TokenManager;
 use dotenv::dotenv;
-use mongodb::options::ClientOptions;
 use mongodb::{Client, Database};
 use poise::serenity_prelude::{self, GatewayIntents};
 use serenity::all::Token;
+use tokio::sync::Mutex;
 
 use crate::structs::ValeriyyaEventHandler;
-use crate::utils::on_error;
+use crate::utils::{initialize_database, on_error};
 
 type Error = Box<dyn std::error::Error + Send + Sync>;
 type Context<'a> = poise::Context<'a, Data, Error>;
@@ -18,8 +21,8 @@ type Context<'a> = poise::Context<'a, Data, Error>;
 #[derive(Debug)]
 pub struct Data {
     db_client: Client,
-    youtube_api_key: String,
-    songbird: std::sync::Arc<songbird::Songbird>,
+    api_token_manager: Arc<Mutex<TokenManager>>,
+    songbird: Arc<songbird::Songbird>,
 }
 
 impl Data {
@@ -31,30 +34,18 @@ impl Data {
 async fn init() -> Result<(), Error> {
     tracing_subscriber::fmt().pretty().init();
 
-    let discord_token =
-        Token::from_env("VALERIYYA_DISCORD_TOKEN").expect("(DISCORD_TOKEN IS NOT PRESENT)");
-    let database_url = std::env::var("VALERIYYA_MONGODB").expect("(MONGODB_TOKEN IS NOT PRESENT)");
-    let youtube_api_key =
-        std::env::var("VALERIYYA_YOUTUBE_API_KEY").expect("(API_TOKEN IS NOT PRESENT)");
+    let token_manager = Arc::new(Mutex::new(TokenManager::new("token.json").await?));
 
+    let discord_token = {
+        let guard = token_manager.lock().await;
+        Token::from_str(&guard.get_discord_token()).expect("Incorrect Discord Token!")
+    };
     let songbird = songbird::Songbird::serenity();
 
-    let database_options = ClientOptions::parse(database_url).await?;
-    let db_client = Client::with_options(database_options)?;
-
-    match db_client
-        .database("valeriyya")
-        .run_command(doc! {"ping": 1 })
-        .await
-    {
-        Ok(..) => {
-            tracing::info!("Successfully pinged the database!");
-        }
-        Err(..) => {
-            tracing::error!("Failed to ping the database!");
-        }
-    }
-
+    let db_client = {
+        let guard = token_manager.lock().await;
+        initialize_database(guard.get_mongo_token()).await
+    };
     let discord_intents = GatewayIntents::non_privileged()
         | GatewayIntents::GUILD_MEMBERS
         | GatewayIntents::MESSAGE_CONTENT;
@@ -100,7 +91,7 @@ async fn init() -> Result<(), Error> {
 
     let data = Data {
         db_client,
-        youtube_api_key,
+        api_token_manager: token_manager,
         songbird: songbird.clone(),
     };
 

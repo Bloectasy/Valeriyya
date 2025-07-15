@@ -371,6 +371,11 @@ struct Album {
     pub external_urls: ExternalUrls,
 }
 
+pub enum SpotifyQuery {
+    Track(String),
+    Playlist(Vec<String>),
+}
+
 pub struct SongEndNotifier {
     pub channel_id: ChannelId,
     pub http: Arc<Http>,

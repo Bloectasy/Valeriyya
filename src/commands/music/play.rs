@@ -17,14 +17,10 @@ use std::time::Duration;
 )]
 pub async fn play(
     ctx: Context<'_>,
-    #[description = "The url of the song"]
+    #[description = "The url of the song or playlist"]
     #[rest]
     url: String,
 ) -> Result<(), Error> {
-    let video_bool =
-        crate::regex!(r"(?:(?:PL|LL|EC|UU|FL|RD|UL|TL|PU|OLAK5uy_)[0-9A-Za-z-_]{10,}|RDMM)")
-            .find(&url)
-            .is_none();
     let request_client = reqwest::Client::new();
     let guild_id = ctx.guild_id().unwrap();
 
@@ -44,33 +40,27 @@ pub async fn play(
         }
     };
 
-    let msg = ctx.say("Loading song...").await.unwrap();
+    let msg = ctx.say("Loading song...").await?;
     let _ = ctx.data().songbird.join(guild_id, connect_to).await;
 
     if let Some(handler_lock) = ctx.data().songbird.get(guild_id) {
         let mut handler = handler_lock.lock().await;
 
-        let metedata_url = url.clone();
-        let metadata: Vec<Video> = match video_bool {
-            true => Valeriyya::get_video_metadata(ctx, metedata_url).await,
-            false => Valeriyya::get_playlist_metadata(ctx, metedata_url).await,
-        };
+        // --- Only one call, always returns Vec<Video> ---
+        let metadata: Vec<Video> = Valeriyya::get_metadata(ctx, url.clone()).await;
 
-        let source = match video_bool {
-            true => vec![YoutubeDl::new(request_client, metadata[0].id.clone())],
-            false => {
-                let videos = metadata.clone();
-                let mut yt: Vec<YoutubeDl> = Vec::with_capacity(100);
-                for vid in videos {
-                    yt.push(YoutubeDl::new(request_client.clone(), vid.id))
-                }
-                yt
-            }
-        };
+        println!("fadasdasdasd");
+        println!("{:?}", metadata);
 
-        for (i, s) in source.into_iter().enumerate() {
+        // Prepare sources for all videos
+        let sources: Vec<YoutubeDl> = metadata
+            .iter()
+            .map(|video| YoutubeDl::new(request_client.clone(), video.id.clone()))
+            .collect();
+
+        for (i, source) in sources.into_iter().enumerate() {
             let queue = handler.enqueue_with_preload(
-                s.into(),
+                source.into(),
                 Some(metadata[i].duration - Duration::from_secs(15)),
             );
             let _ = queue.add_event(
@@ -99,7 +89,6 @@ pub async fn play(
 
         tokio::task::spawn(async move {
             let queue = queue_clone;
-
             loop {
                 if !queue.is_empty() {
                     tokio::time::sleep(Duration::from_secs(600)).await;
@@ -110,15 +99,10 @@ pub async fn play(
             }
         });
 
-        let information_title = match video_bool {
-            true => {
-                if handler.queue().len() >= 2 {
-                    "Queued"
-                } else {
-                    "Playing"
-                }
-            }
-            false => "Playing",
+        let information_title = if metadata.len() > 1 {
+            "Queued"
+        } else {
+            "Playing"
         };
 
         msg.edit(

@@ -1,7 +1,9 @@
 use std::sync::Arc;
 
+use bson::doc;
 use chrono::Utc;
-use mongodb::Database;
+use iso8601_duration::Duration as iso_duration;
+use mongodb::{options::ClientOptions, Client, Database};
 use poise::{
     serenity_prelude::all::{
         Color, CreateEmbed, CreateEmbedAuthor, CreateEmbedFooter, CreateMessage, EditMessage,
@@ -9,14 +11,15 @@ use poise::{
     },
     CreateReply,
 };
-use iso8601_duration::Duration as iso_duration;
+use reqwest::header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE};
+use serde_json::Value;
 use serenity::all::{ChannelId, UserId};
 use tokio::time::sleep;
 
 use crate::{
     structs::{
         GuildDb, Reminder, ResponsePlaylistApi, ResponseSearchVideoApi, ResponseVideoApi,
-        SearchVideoItem, Video,
+        SearchVideoItem, SpotifyQuery, Video,
     },
     Context, Data, Error,
 };
@@ -46,14 +49,84 @@ macro_rules! regex_lazy {
     };
 }
 
-// async fn _get_spotify_metadata(url: impl Into<String>, reqwest: &reqwest::Client) {
-//     let url = format!("https://api.spotify.com/v1/search/{}", url.into());
-//     reqwest.get(url)
-//     .header(AUTHORIZATION, "Bearer [AUTH_TOKEN]")
-//     .header(CONTENT_TYPE, "application/json")
-//     .header(ACCEPT, "application/json")
-//     .send().await.unwrap().text();
-// }
+fn extract_spotify_id(url: &str) -> Option<(String, String)> {
+    let re = regex::Regex::new(r"open\.spotify\.com/(track|playlist)/([a-zA-Z0-9]+)").unwrap();
+    re.captures(url)
+        .map(|caps| (caps[1].to_string(), caps[2].to_string()))
+}
+
+pub async fn get_spotify_queries(
+    url: &str,
+    api_key: &str,
+    reqwest: &reqwest::Client,
+) -> Option<SpotifyQuery> {
+    let (kind, id) = extract_spotify_id(url)?;
+
+    match kind.as_str() {
+        "track" => {
+            let api_url = format!("https://api.spotify.com/v1/tracks/{}", id);
+            let response = reqwest
+                .get(api_url)
+                .header(AUTHORIZATION, format!("Bearer {}", api_key))
+                .header(CONTENT_TYPE, "application/json")
+                .header(ACCEPT, "application/json")
+                .send()
+                .await
+                .ok()?
+                .json::<Value>()
+                .await
+                .ok()?;
+
+            let name = response.get("name")?.as_str()?;
+            let artist = response.get("artists")?.get(0)?.get("name")?.as_str()?;
+            Some(SpotifyQuery::Track(format!("{} {}", name, artist)))
+        }
+        "playlist" | "album" => {
+            let mut queries = Vec::new();
+            let mut next_url = Some(format!(
+                "https://api.spotify.com/v1/playlists/{}/tracks?limit=100",
+                id
+            ));
+
+            while let Some(url) = next_url {
+                let response = reqwest
+                    .get(&url)
+                    .header(AUTHORIZATION, format!("Bearer {}", api_key))
+                    .header(CONTENT_TYPE, "application/json")
+                    .header(ACCEPT, "application/json")
+                    .send()
+                    .await
+                    .ok()?
+                    .json::<Value>()
+                    .await
+                    .ok()?;
+
+                if let Some(items) = response.get("items").and_then(|v| v.as_array()) {
+                    for item in items {
+                        if let Some(track) = item.get("track") {
+                            let name = track.get("name").and_then(|n| n.as_str());
+                            let artist = track
+                                .get("artists")
+                                .and_then(|a| a.get(0))
+                                .and_then(|a| a.get("name"))
+                                .and_then(|n| n.as_str());
+                            if let (Some(name), Some(artist)) = (name, artist) {
+                                queries.push(format!("{} {}", name, artist));
+                            }
+                        }
+                    }
+                }
+
+                next_url = response
+                    .get("next")
+                    .and_then(|n| n.as_str())
+                    .map(|s| s.to_string());
+            }
+            Some(SpotifyQuery::Playlist(queries))
+        }
+        _ => None,
+    }
+}
 
 async fn search_video(
     query: impl Into<String>,
@@ -72,44 +145,31 @@ async fn search_video(
         .expect("Error getting Video search.")
         .json::<ResponseSearchVideoApi>()
         .await
-        .expect("Error parsing the Video search JSON.")
-        .items;
-    video
+        .expect("Error parsing the Video search JSON.");
+    video.items
         .first()
         .expect("Error getting the first Video search.")
         .clone()
 }
 
-async fn get_metadata(ctx: Context<'_>, url: impl Into<String>, playlist: bool) -> Vec<Video> {
+async fn get_metadata(ctx: Context<'_>, url: impl Into<String>) -> Vec<Video> {
     let url = url.into();
     let reqwest_client = reqwest::Client::new();
-    let api_key = ctx.data().youtube_api_key.clone();
+    let data = ctx.data();
+    let mut token_manager = data.api_token_manager.lock().await;
+    let spotify_api_key = token_manager.get_spotify_token().await.unwrap().clone();
+    let youtube_api_key = token_manager.get_youtube_token().clone();
 
-    let id = if playlist {
+    // Check if it's a YouTube playlist
+    if let Some(youtube_id) =
         regex!(r"(?:(?:PL|LL|EC|UU|FL|RD|UL|TL|PU|OLAK5uy_)[0-9A-Za-z-_]{10,}|RDMM)")
             .find(&url)
             .map(|u| u.as_str().to_owned())
-            .unwrap()
-    } else {
-        match regex!(r"[0-9A-Za-z_-]{10}[048AEIMQUYcgkosw]")
-            .find(&url)
-            .map(|u| u.as_str().to_owned())
-        {
-            Some(u) => u,
-            None => {
-                search_video(url.clone(), &api_key, &reqwest_client)
-                    .await
-                    .id
-                    .video_id
-            }
-        }
-    };
-
-    if playlist {
+    {
         let request_playlist_url = format!(
             "https://youtube.googleapis.com/youtube/v3/playlistItems?part=snippet%2CcontentDetails&maxResults=100&playlistId={}&key={}",
-            id,
-            api_key
+            youtube_id,
+            youtube_api_key
         );
         let playlist_items = reqwest_client
             .get(request_playlist_url)
@@ -129,7 +189,7 @@ async fn get_metadata(ctx: Context<'_>, url: impl Into<String>, playlist: bool) 
         let request_videos_url = format!(
             "https://youtube.googleapis.com/youtube/v3/videos?part=snippet%2CcontentDetails&id={}&key={}",
             video_ids.join(","),
-            api_key
+            youtube_api_key
         );
 
         let video_items = reqwest_client
@@ -156,11 +216,67 @@ async fn get_metadata(ctx: Context<'_>, url: impl Into<String>, playlist: bool) 
         }
         return videos;
     }
+    // Check if the url is a Spotify playlist
+    else if let Some((kind, spotify_id)) = extract_spotify_id(&url) {
+        if kind == "playlist" {
+            let playlist_url = format!("https://open.spotify.com/playlist/{}", spotify_id);
+            let tracks =
+                get_spotify_queries(&playlist_url, &spotify_api_key, &reqwest_client).await;
+            let mut videos = Vec::new();
+            if let Some(SpotifyQuery::Playlist(queries)) = tracks {
+                for query in queries {
+                    let video = search_video(&query, &youtube_api_key, &reqwest_client).await;
+                    let request_video_url = format!(
+                        "https://youtube.googleapis.com/youtube/v3/videos?part=snippet%2CcontentDetails&id={}&key={}",
+                        video.id.video_id,
+                        youtube_api_key
+                    );
+                    let item = reqwest_client
+                        .get(&request_video_url)
+                        .send()
+                        .await
+                        .expect("Error getting Video JSON")
+                        .json::<ResponseVideoApi>()
+                        .await
+                        .expect("Error parsing the Video JSON.")
+                        .items
+                        .first()
+                        .expect("There is no video from this url.")
+                        .clone();
+                    let duration = iso_duration::parse(&item.content_details.duration)
+                        .unwrap()
+                        .to_std()
+                        .unwrap();
+                    videos.push(Video {
+                        id: item.id,
+                        title: item.snippet.title,
+                        duration,
+                    });
+                }
+            }
+            return videos;
+        }
+    }
+
+    let id = match get_spotify_queries(&url, &spotify_api_key, &reqwest_client).await {
+        Some(SpotifyQuery::Track(search_query)) => {
+            search_video(&search_query, &youtube_api_key, &reqwest_client)
+                .await
+                .id
+                .video_id
+        }
+        _ => {
+            search_video(&url, &youtube_api_key, &reqwest_client)
+                .await
+                .id
+                .video_id
+        }
+    };
 
     let request_video_url = format!(
         "https://youtube.googleapis.com/youtube/v3/videos?part=snippet%2CcontentDetails&id={}&key={}",
         id,
-        api_key
+        youtube_api_key
     );
 
     let item = reqwest_client
@@ -359,6 +475,26 @@ pub async fn on_error(error: poise::FrameworkError<'_, Data, Error>) {
     }
 }
 
+pub async fn initialize_database(database_token: String) -> Client {
+    let database_options = ClientOptions::parse(database_token).await.unwrap();
+    let db_client = Client::with_options(database_options).unwrap();
+
+    match db_client
+        .database("valeriyya")
+        .run_command(doc! {"ping": 1 })
+        .await
+    {
+        Ok(..) => {
+            tracing::info!("Successfully pinged the database!");
+        }
+        Err(..) => {
+            tracing::error!("Failed to ping the database!");
+        }
+    }
+
+    db_client
+}
+
 pub const PURPLE_COLOR: Color = Color::from_rgb(82, 66, 100);
 
 pub struct Valeriyya;
@@ -411,11 +547,7 @@ impl Valeriyya {
         GuildDb::new(db, guild_id.to_string()).await
     }
 
-    pub async fn get_video_metadata(ctx: Context<'_>, url: impl Into<String>) -> Vec<Video> {
-        get_metadata(ctx, url, false).await
-    }
-
-    pub async fn get_playlist_metadata(ctx: Context<'_>, url: impl Into<String>) -> Vec<Video> {
-        get_metadata(ctx, url, true).await
+    pub async fn get_metadata(ctx: Context<'_>, url: impl Into<String>) -> Vec<Video> {
+        get_metadata(ctx, url).await
     }
 }
