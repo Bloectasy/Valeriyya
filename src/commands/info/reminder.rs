@@ -81,7 +81,9 @@ pub async fn list(ctx: Context<'_>) -> Result<(), Error> {
     }
     let component_row = CreateActionRow::Buttons(component_buttons.into());
 
-    ctx.send(Valeriyya::reply(response).components(vec![component_row]))
+    let components = vec![serenity::all::CreateComponent::ActionRow(component_row)];
+
+    ctx.send(Valeriyya::reply(response).components(components))
         .await?;
 
     while let Some(mci) = ComponentInteractionCollector::new(ctx.serenity_context())

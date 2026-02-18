@@ -146,7 +146,8 @@ async fn search_video(
         .json::<ResponseSearchVideoApi>()
         .await
         .expect("Error parsing the Video search JSON.");
-    video.items
+    video
+        .items
         .first()
         .expect("Error getting the first Video search.")
         .clone()

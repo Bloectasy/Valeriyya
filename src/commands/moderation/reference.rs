@@ -96,10 +96,10 @@ pub async fn reference(
                 staff_user_cache.id,
                 staff_user_cache.face(),
             );
-            let target_user = UserId::new(case_found.target_id.parse::<u64>().unwrap())
+            let target_user_obj = UserId::new(case_found.target_id.parse::<u64>().unwrap())
                 .to_user(ctx.serenity_context())
-                .await?
-                .tag();
+                .await?;
+            let target_user = target_user_obj.tag();
 
             let icon_url = ctx.guild().unwrap().icon_url().unwrap_or(String::from(""));
 

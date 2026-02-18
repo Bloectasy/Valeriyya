@@ -101,9 +101,9 @@ async fn init() -> Result<(), Error> {
     };
 
     let mut client = serenity_prelude::ClientBuilder::new(discord_token.clone(), discord_intents)
-        .voice_manager::<songbird::Songbird>(songbird)
-        .event_handler(event_handler)
-        .framework(framework)
+        .voice_manager(songbird)
+        .event_handler(Arc::new(event_handler))
+        .framework(Box::new(framework))
         .data(std::sync::Arc::new(data))
         .await
         .unwrap();

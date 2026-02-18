@@ -21,7 +21,6 @@ pub async fn ban(
     #[description = "The member to ban (Use this to provide an id instead of mention)"]
     member_id: Option<String>,
     #[description = "The reason for this ban."]
-    #[rest]
     reason: Option<String>,
 ) -> Result<(), Error> {
     let database = &ctx.data().database();

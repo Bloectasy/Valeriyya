@@ -18,7 +18,6 @@ pub async fn mute(
     #[description = "The member to mute"] mut member: Member,
     #[description = "The time the member to be muted for. (Max 28 days)."] time: String,
     #[description = "The reason for this mute."]
-    #[rest]
     reason: Option<String>,
 ) -> Result<(), Error> {
     let string_time = Valeriyya::ms(&time);

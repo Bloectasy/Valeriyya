@@ -31,7 +31,7 @@ pub async fn star(
                 )
                 .await
                 .unwrap()
-                .encode()
+                .encode("base64")
                 .await
                 .expect("Failed to make the avatar image for the webhook!"),
             ),

@@ -46,12 +46,12 @@ pub async fn cases(
         }
 
         let case = case.unwrap();
-        let target_user = UserId::new(case.target_id.parse::<u64>().unwrap())
+        let target_user_obj = UserId::new(case.target_id.parse::<u64>().unwrap())
             .to_user(ctx.serenity_context())
-            .await?
-            .tag();
+            .await?;
+        let target_user = target_user_obj.tag();
 
-        ctx.send(Valeriyya::reply_default().embed(create_embed(ctx, staff, case, target_user)))
+        ctx.send(Valeriyya::reply_default().embed(create_embed(ctx, staff, case, target_user.to_string())))
             .await?;
     } else if let OptionChoices::Delete = option {
         let case = db.cases.iter().find(|c| c.id == id);

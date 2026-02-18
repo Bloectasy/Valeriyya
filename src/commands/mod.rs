@@ -1,3 +1,4 @@
+pub mod application;
 pub mod info;
 pub mod moderation;
 pub mod music;

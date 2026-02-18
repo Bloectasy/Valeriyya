@@ -18,7 +18,6 @@ pub async fn kick(
     ctx: Context<'_>,
     #[description = "The member to kick"] member: Member,
     #[description = "The reason for this kick."]
-    #[rest]
     reason: Option<String>,
 ) -> Result<(), Error> {
     let database = &ctx.data().database();
